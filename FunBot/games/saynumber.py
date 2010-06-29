@@ -45,6 +45,7 @@ class Saynumber:
 		if cmd == "number":
 			if user != self.userlist[self.curruser]:
 				self.irc.notice(nick, "It's not your turn!")
+				return
 			try:
 				num = int(args[0])
 			except ValueError:
