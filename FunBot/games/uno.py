@@ -136,47 +136,47 @@ class Uno:
 			return self.handleai()
 		self.drew = False
 	def handleai(self):
-		print "Entering handleai"
+		#print "Entering handleai"
 		me = self.players[self.currplayer]
-		print me
+		#print me
 		playablecards = map(self.appendpoints, filter(self.canbeplayed, me[1]))
-		print "Playable cards:", playablecards
+		#print "Playable cards:", playablecards
 		if len(playablecards) == 0:
-			print "No playable cards!"
+			#print "No playable cards!"
 			if self.drew == True:
-				print "skipping"
+				#print "skipping"
 				self.irc.send(".skip")
 				return self.handlecmd("s", [], "FunBot", "tpw_rules")
 			else:
-				print "drawing"
+				#print "drawing"
 				self.irc.send(".draw")
 				return self.handlecmd("d", [], "FunBot", "tpw_rules")
 		playablecards.sort()
 		playablecards.reverse()
-		print "sorted playable cards:", playablecards
+		#print "sorted playable cards:", playablecards
 		preferredcards = []
 		for x in playablecards:
 			if x[0] == 50:
 				continue
 			preferredcards.append(x)
-		print "preferred cards", preferredcards
+		#print "preferred cards", preferredcards
 		if len(preferredcards) == 0:
-			print "no preferred cards, using wilds"
+			#print "no preferred cards, using wilds"
 			pointvals = [[0,"red"],[0,"green"],[0,"blue"],[0,"yellow"]]
-			print "calculating points"
+			#print "calculating points"
 			for x in me[1]:
 				if x[1] == -1:
 					continue
 				pointvals[x[1]][0] += self.appendpoints(x)[0]
 			pointvals.sort()
 			pointvals.reverse()
-			print "points:", pointvals
+			#print "points:", pointvals
 			if playablecards[0][1] == 13:
-				print "playing wild"
+				#print "playing wild"
 				self.irc.send(".play wild "+pointvals[0][1])
 				return self.handlecmd("p", ["wild", pointvals[0][1]], "FunBot", "tpw_rules")
 			else:
-				print "playing wdf"
+				#print "playing wdf"
 				self.irc.send(".play wdf "+pointvals[0][1])
 				return self.handlecmd("p", ["wdf", pointvals[0][1]], "FunBot", "tpw_rules")
 		preferredcards2 = []
@@ -184,19 +184,19 @@ class Uno:
 			if x[2] != self.topcard[1]:
 				continue
 			preferredcards2.append(x)
-		print "preferred cards 2", preferredcards2
+		#print "preferred cards 2", preferredcards2
 		if len(preferredcards2) == 0:
-			print "preferred cards 2 empty"
+			#print "preferred cards 2 empty"
 			preferredcards2 = preferredcards
 		card_ = preferredcards2[0]
-		print "gonna play", card_
+		#print "gonna play", card_
 		color = ["red", "green", "blue", "yellow"][card_[2]]
-		print "color", color
+		#print "color", color
 		if card_[0] < 10:
 			card = str(card_[0])
 		else:
 			card = ["drawtwo", "reverse", "skip"][card_[1]-10]
-		print "card", card
+		#print "card", card
 		self.irc.send(".play "+color+" "+card)
 		return self.handlecmd("p", [color, card], "FunBot", "tpw_rules")
 	def appendpoints(self, card):
@@ -233,8 +233,6 @@ class Uno:
 		return -1
 	def handlewin(self, user):
 		self.irc.send(user+" wins!!")
-		if user == "FunBot":
-			raise Exception
 	def handlecmd(self, cmd, args, user, nick):
 		if self.players[self.currplayer][0] != user:
 			self.irc.notice(nick, "It's not your turn!")
