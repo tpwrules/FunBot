@@ -2,7 +2,7 @@ __gamename__ = "roulette"
 __helptext__ = "Spin! You'll need two players or more!"
 __players__ = 2
 
-#Copyright (c) 2010 Thomas Watson, Roger Combs
+#Copyright (c) 2010 Thomas Watson, Rodger Combs
 
 #Permission is hereby granted, free of charge, to any person obtaining a copy
 #of this software and associated documentation files (the "Software"), to deal
