@@ -62,6 +62,7 @@ class Scramble:
 		self.irc.send("Choosing words, be patient!")
 		chosenwords = []
 		tries = 0
+		random.shuffle(wordlist)
 		for x in wordlist:
 			if len(x) > self.maxwordlen:
 				continue
@@ -96,7 +97,7 @@ class Scramble:
 			y = self.currword
 			if len(submission) > len(self.currword):
 				y, x = x, y
-			for z in xrange(x):
+			for z in xrange(len(x)):
 				if x[z] == y[z]:
 					self.discovered[z] = True
 			alldiscovered = True
