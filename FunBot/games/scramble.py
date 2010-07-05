@@ -22,12 +22,15 @@ __players__ = 1
 #OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #THE SOFTWARE.
 
+import os.path
+import random
+
 print "[scramble] Loading wordlist..."
 wordlist = []
 numwords = 0
 loaded = False
 try:
-	f = open("games/scramble_wordlist.txt")
+	f = open(os.path.dirname(__file__)+"/scramble_wordlist.txt")
 		
 	for x in f.xreadlines():
 		wordlist.append(x)
@@ -36,10 +39,7 @@ try:
 	loaded = True
 	print "[scramble] Wordlist loaded successfully!"
 except:
-	import os
-	print "[scramble] Wordlist could not be loaded!", os.listdir()
-
-import random
+	print "[scramble] Wordlist could not be loaded!"
 
 class Scramble:
 	def __init__(self, irc, options):
@@ -54,7 +54,7 @@ class Scramble:
 		pass
 		
 def start(irc, options):
-	pass
+	return Scramble(irc, options)
 	
 def disp_stats(irc, userdata):
-	pass
+	irc.send("Total words unscrambled: "+str(userdata[0]))
