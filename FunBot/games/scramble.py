@@ -70,11 +70,7 @@ class Scramble:
 		if len(chosenwords) < self.numwords:
 			self.irc.send("Warning: Not enough suitable words were found!")
 		chosenwords = chosenwords[:self.numwords]
-		self.words = []
-		for x in chosenwords:
-			array = [y for y in x]
-			random.shuffle(array)
-			self.words.append("".join(array))
+		self.words = chosenwords[:]
 		random.shuffle(self.words)
 		self.currwordnum = 0
 		self.nextword()
@@ -113,7 +109,13 @@ class Scramble:
 					return True
 				self.nextword()
 				return
-			self.irc.send("Word: "+"".join([self.currword[a] if self.discovered[a] else "." for a in xrange(len(self.currword))]))
+			wordreveal = ""
+			for x in xrange(len(self.currword)):
+				if self.discovered[x] == True:
+					wordreveal += self.currword[x]
+				else:
+					wordreveal += "."
+			self.irc.send("Word: "+wordreveal)
 
 def start(irc, options):
 	return Scramble(irc, options)
