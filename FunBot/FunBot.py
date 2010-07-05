@@ -35,9 +35,10 @@ from games import saynumber
 from games import roulette
 from games import gofish
 from games import uno
+from games import scramble
 
 #PLUGIN DICTIONARY
-gamemodules = {uno.__gamename__:uno, saynumber.__gamename__:saynumber, roulette.__gamename__:roulette, gofish.__gamename__:gofish}
+gamemodules = {uno.__gamename__:uno, saynumber.__gamename__:saynumber, roulette.__gamename__:roulette, gofish.__gamename__:gofish, scramble.__gamename__:scramble}
 
 class Irc:
 	def __init__(self, s, users, config, nicklist):
