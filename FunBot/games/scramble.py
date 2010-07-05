@@ -101,7 +101,7 @@ class Scramble:
 				alldiscovered = alldiscovered and x
 			if alldiscovered == True:
 				self.irc.send(user+" got it! The word was "+self.currword)
-				self.irc.setuserdata(user, self.irc.getuserdata(user)[0]+1)
+				self.irc.setuserdata(user, [self.irc.getuserdata(user)[0]+1])
 				self.currwordnum += 1
 				if self.currwordnum == len(self.words):
 					self.irc.send("No more words! Come back next time!")
@@ -120,4 +120,4 @@ def start(irc, options):
 	return Scramble(irc, options)
 	
 def disp_stats(irc, userdata):
-	self.irc.send("Total words unscrambled: "+str(userdata[0]))
+	irc.send("Total words unscrambled: "+str(userdata[0]))
