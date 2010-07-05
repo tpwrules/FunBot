@@ -43,18 +43,78 @@ except:
 
 class Scramble:
 	def __init__(self, irc, options):
-		pass
+		self.irc = irc
+		if loaded == False:
+			self.irc.send("Error! Wordlist was never loaded! Complain to owner!")
+			raise Exception
+		try:
+			self.maxwordlen = int(options[0])
+		except:
+			self.maxwordlen = 10
+		try:
+			self.numwords = int(options[1])
+		except:
+			self.numwords = 10
 	def join(self, user):
-		pass
+		if self.irc.getuserdata(user) == None:
+			self.irc.setuserdata(user, [0])
 	def start(self):
-		pass
+		self.irc.send("Choosing words, be patient!")
+		chosenwords = []
+		tries = 0
+		for x in wordlist:
+			if len(x) > self.maxwordlen:
+				continue
+			chosenwords.append(x)
+		if len(chosenwords) < self.numwords:
+			self.irc.send("Warning: Not enough suitable words were found!")
+		chosenwords = chosenwords[:self.numwords]
+		self.words = []
+		for x in chosenwords:
+			array = [y for y in x]
+			random.shuffle(array)
+			self.words.append("".join(array))
+		random.shuffle(self.words)
+		self.currwordnum = 0
+		self.nextword()
 	def stop(self):
 		pass
+	def nextword(self):
+		arr = [y for y in self.words[self.currwordnum]]
+		random.shuffle(arr)
+		self.currword = self.words[self.currwordnum]
+		self.discovered = [False]*len(self.currword)
+		self.irc.send(str(self.currwordnum+1)+"/"+str(len(self.words))+". Unscramble this: "+"".join(arr))
 	def handlecmd(self, cmd, args, user, nick):
-		pass
-		
+		if cmd == "w":
+			try:
+				submission = args[0]
+			except:
+				self.irc.notice(nick, "What do you want to tell me?")
+				return
+			x = submission
+			y = self.currword
+			if len(submission) > len(self.currword):
+				y, x = x, y
+			for z in xrange(x):
+				if x[z] == y[z]:
+					self.discovered[z] = True
+			alldiscovered = True
+			for x in self.discovered:
+				alldiscovered = alldiscovered and x
+			if alldiscovered == True:
+				self.irc.send(user+" got it! The word was "+self.currword)
+				self.irc.setuserdata(user, self.irc.getuserdata(user)[0]+1)
+				self.currwordnum += 1
+				if self.currwordnum == len(self.words):
+					self.irc.send("No more words! Come back next time!")
+					return True
+				self.nextword()
+				return
+			self.irc.send("Word: "+[self.currword[a] if self.discovered[a] else "." for a in xrange(len(self.currword))])
+
 def start(irc, options):
 	return Scramble(irc, options)
 	
 def disp_stats(irc, userdata):
-	irc.send("Total words unscrambled: "+str(userdata[0]))
+	self.irc.send("Total words unscrambled: "+str(userdata[0]))
