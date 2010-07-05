@@ -22,6 +22,23 @@ __players__ = 1
 #OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #THE SOFTWARE.
 
+print "[scramble] Loading wordlist..."
+wordlist = []
+numwords = 0
+loaded = False
+try:
+	f = open("games/scramble_wordlist.txt")
+		
+	for x in f.xreadlines():
+		wordlist.append(x)
+		numwords += 1
+		
+	loaded = True
+	print "[scramble] Wordlist loaded successfully!"
+except:
+	import os
+	print "[scramble] Wordlist could not be loaded!", os.listdir()
+
 import random
 
 class Scramble:
