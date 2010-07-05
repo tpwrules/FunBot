@@ -86,6 +86,7 @@ class Scramble:
 		self.currword = self.words[self.currwordnum]
 		self.discovered = [False]*len(self.currword)
 		self.irc.send(str(self.currwordnum+1)+"/"+str(len(self.words))+". Unscramble this: "+"".join(arr))
+		print self.currword, "<-- the word"
 	def handlecmd(self, cmd, args, user, nick):
 		if cmd == "w":
 			try:
@@ -112,7 +113,7 @@ class Scramble:
 					return True
 				self.nextword()
 				return
-			self.irc.send("Word: "+[self.currword[a] if self.discovered[a] else "." for a in xrange(len(self.currword))])
+			self.irc.send("Word: "+"".join([self.currword[a] if self.discovered[a] else "." for a in xrange(len(self.currword))]))
 
 def start(irc, options):
 	return Scramble(irc, options)
