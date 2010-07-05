@@ -413,6 +413,8 @@ try:
 						loggedin[hostname][1].append(chan)
 						irc.privmsg(chan, loggedin[hostname][0] + " has joined the game!")
 					elif channels[chan][5] == 2:
+						if hostname not in channels[chan][6]:
+							irc.notice(nick, "Error! You aren't playing the game!")
 						try:
 							result = channels[chan][2].handlecmd(parts[3][2:], parts[4:], loggedin[hostname][0], nick)
 						except:
