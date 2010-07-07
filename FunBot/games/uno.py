@@ -254,10 +254,11 @@ class Uno:
 	def handlewin(self, user):
 		self.irc.send(user+" wins!!")
 	def handlecmd(self, cmd, args, user, nick):
+		cmd = cmd.lower()
 		if self.players[self.currplayer][0] != user:
 			self.irc.notice(nick, "It's not your turn!")
 			return
-		if cmd == "p" or cmd == "play":
+		if cmd == "p" or cmd == "put":
 			player = self.players[self.currplayer]
 			if len(args) < 2:
 				self.irc.notice(nick, "Invalid play!1")
@@ -324,7 +325,10 @@ class Uno:
 			self.drew = False
 			self.currplayer = (self.currplayer+self.direction)%len(self.players)
 			return self.runturn()
-		
+		elif cmd == "c" or cmd == "cards":
+			self.irc.send("Top card: "+self.getcardtext(self.topcard))
+			self.irc.notice(nick, " ".join([self.getcardtext(card) for card in self.players[self.currplayer][1]]))
+
 def start(irc, options):
 	return Uno(irc, options)
 	

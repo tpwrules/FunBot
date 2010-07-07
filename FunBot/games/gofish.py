@@ -182,6 +182,8 @@ class GoFish:
 			if numcards == 0:
 				self.currplayer = askeenum
 			return self.doturn(self.currplayer)
+		elif cmd == "c" or cmd == "cards":
+			self.irc.notice(nick, "Cards: "+", ".join([cardletters[card] for card in self.hands[self.currplayer]]))
 
 def start(irc, options):
 	return GoFish(irc, options)
