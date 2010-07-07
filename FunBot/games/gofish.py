@@ -96,6 +96,10 @@ class GoFish:
 				name += "s"
 		return name
 	def handlecmd(self, cmd, args, user, nick):
+		cmd = cmd.lower()
+		if self.players[self.currplayer] != user:
+			self.irc.notice(nick, "Error! It's not your turn!")
+			return
 		if cmd == "a" or cmd == "ask":
 			if len(args) < 2:
 				self.irc.notice(nick, "Not enough parameters! !ask <player> <card>")
@@ -178,7 +182,7 @@ class GoFish:
 			if numcards == 0:
 				self.currplayer = askeenum
 			return self.doturn(self.currplayer)
-		
+
 def start(irc, options):
 	return GoFish(irc, options)
 	
