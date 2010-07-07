@@ -255,6 +255,9 @@ class Uno:
 		self.irc.send(user+" wins!!")
 	def handlecmd(self, cmd, args, user, nick):
 		cmd = cmd.lower()
+		if cmd == "count":
+			self.irc.send("Number of cards: "+", ".join([p[0]+" has "+str(len(p[1])) for p in self.players]))
+			return
 		if self.players[self.currplayer][0] != user:
 			self.irc.notice(nick, "It's not your turn!")
 			return
