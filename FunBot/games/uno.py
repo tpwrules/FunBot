@@ -253,6 +253,13 @@ class Uno:
 		return -1
 	def handlewin(self, user):
 		self.irc.send(user+" wins!!")
+		points = 0
+		for player in self.players:
+			if player[0] == user:
+				continue
+			self.irc.send(player[0]+"'s cards: "+" ".join([self.getcardtext(c) for c in player[1]]))
+			points += sum([self.appendpoints(c)[0] for c in player[1]])
+		self.irc.send(user+" gets "+str(points)+" points!")
 	def handlecmd(self, cmd, args, user, nick):
 		cmd = cmd.lower()
 		if cmd == "count":
