@@ -63,6 +63,8 @@ class Uno:
 			hand.append(self.popcard())
 		if user != "FunBot":
 			self.irc.notice(self.irc.getnick(user), "Your cards: "+" ".join([self.getcardtext(card) for card in hand]))
+			if self.irc.getuserdata(user) == None:
+				self.irc.setuserdata(user, [0, 0])
 		self.players.append([user, hand])
 	def getcardtext(self, card_):
 		text = ""
@@ -258,7 +260,12 @@ class Uno:
 			if player[0] == user:
 				continue
 			self.irc.send(player[0]+"'s cards: "+" ".join([self.getcardtext(c) for c in player[1]]))
-			points += sum([self.appendpoints(c)[0] for c in player[1]])
+			pointvals = sum([self.appendpoints(c)[0] for c in player[1]])
+			userdata = self.irc.getuserdata(player[0])
+			self.irc.setuserdata(player[0], [userdata[0]-pointvals, userdata[1]+1])
+			points += pointvals
+		userdata = self.irc.getuserdata(user)
+		self.irc.setuserdata(user, [userdata[0]+points, userdata[1]+1])
 		self.irc.send(user+" gets "+str(points)+" points!")
 	def handlecmd(self, cmd, args, user, nick):
 		cmd = cmd.lower()
@@ -343,4 +350,4 @@ def start(irc, options):
 	return Uno(irc, options)
 	
 def disp_stats(irc, userdata):
-	return
+	irc.send("Total points: "+str(userdata[0])+", Number of games played: "+str(userdata[1]))
