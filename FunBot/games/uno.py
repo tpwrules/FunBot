@@ -262,10 +262,12 @@ class Uno:
 			self.irc.send(player[0]+"'s cards: "+" ".join([self.getcardtext(c) for c in player[1]]))
 			pointvals = sum([self.appendpoints(c)[0] for c in player[1]])
 			userdata = self.irc.getuserdata(player[0])
-			self.irc.setuserdata(player[0], [userdata[0]-pointvals, userdata[1]+1])
+			if player[0] != "FunBot":
+				self.irc.setuserdata(player[0], [userdata[0]-pointvals, userdata[1]+1])
 			points += pointvals
 		userdata = self.irc.getuserdata(user)
-		self.irc.setuserdata(user, [userdata[0]+points, userdata[1]+1])
+		if player[0] != "FunBot":
+			self.irc.setuserdata(user, [userdata[0]+points, userdata[1]+1])
 		self.irc.send(user+" gets "+str(points)+" points!")
 	def handlecmd(self, cmd, args, user, nick):
 		cmd = cmd.lower()
