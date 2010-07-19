@@ -266,7 +266,7 @@ class Uno:
 				self.irc.setuserdata(player[0], [userdata[0]-pointvals, userdata[1]+1])
 			points += pointvals
 		userdata = self.irc.getuserdata(user)
-		if player[0] != "FunBot":
+		if user != "FunBot":
 			self.irc.setuserdata(user, [userdata[0]+points, userdata[1]+1])
 		self.irc.send(user+" gets "+str(points)+" points!")
 	def handlecmd(self, cmd, args, user, nick):
