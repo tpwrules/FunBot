@@ -44,6 +44,7 @@ class Uno:
 		self.direction = 1
 		self.discard = []
 		self.topcard = None
+		self.drew = False
 		tdeck = []
 		for x in xrange(1, 13):
 			tdeck.append(x)
