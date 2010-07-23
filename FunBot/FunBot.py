@@ -68,6 +68,8 @@ class NetworkConnection:
 			self._lock.release()
 	
 def network_handler(net):
+	channels = {}
+	name2chan = {}
 	s = net.s
 	irc = net.conn
 	state = 0
@@ -86,8 +88,31 @@ def network_handler(net):
 				parts = line.split(" ")
 				if parts[0] == "PING":
 					irc.quote("PONG "+parts[1])
+					continue
+				if state == 1:
+					if parts[0] == servername:
+						if parts[1] == "366":
+							log("[STATUS] Successfully joined "+parts[3])
+						continue
+				elif state == 0:
+					if parts[1] == "001":
+						state = 1
+						servername = parts[0]
+						for x in net.channels:
+							log("[STATUS] Joining "+x)
+							if not config_parser.has_section(x):
+								log("[WARNING] No such section, not joining")
+								continue
+							try:
+								chan = config_parser.get(x, "channel")
+								kw = "" if not config_parser.has_option(x, "keyword") else " "+config_parser.get(x, "keyword")
+							except:
+								log("[WARNING] Improper section format, not joining")
+								continue
+							name2chan[x] = chan
+							irc.quote("JOIN "+chan+kw)
 	except:
-		pass
+		raise
 	
 networks = {}
 
