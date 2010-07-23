@@ -147,6 +147,25 @@ except:
 
 global_config.userfile = config_parser.get("config", "userfile")
 
+games = {}
+
+log("[STATUS] Loading game modules...")
+
+gamelist = [] if not config_parser.has_option("config", "games") else config_parser.get("config", "games").split(",")
+
+for game in gamelist:
+	log("[STATUS] Loading "+game)
+	try:
+		__import__("games."+game)
+	except:
+		log("[WARNING] Could not load game")
+		continue
+	m = sys.modules["games."+game]
+	try:
+		games[m.__gamename__] = m
+	except:
+		log("[WARNING] Game has no __gamename__ attribute, not loading")
+	
 log("[STATUS] FunBot successfully started up")
 
 for network in global_config.networks:
