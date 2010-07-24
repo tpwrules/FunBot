@@ -84,11 +84,11 @@ class GameIrc:
 		self._net.quote(data)
 	def send(self, data):
 		if self._notice:
-			self._net.quote("NOTICE "+dest+" :"+data)
+			self._net.quote("NOTICE "+self._dest+" :"+data)
 		else:
-			self._net.quote("PRIVMSG "+dest+" :"+data)
+			self._net.quote("PRIVMSG "+self._dest+" :"+data)
 	def notice(self, nick, data):
-		self._net.quote("NOTICE "+dest+" :"+data)
+		self._net.quote("NOTICE "+nick+" :"+data)
 	def getuserdata(self, hostname):
 		if hostname == "FunBot":
 			try:
@@ -186,7 +186,10 @@ def network_handler(net):
 	channels = {}
 	name2chan = {}
 	chan2name = {}
-	usersloggedin = {}
+	funbotuserinfo = Container()
+	funbotuserinfo.username = "FunBot"
+	funbotuserinfo.chanlist = []
+	usersloggedin = {"FunBot":funbotuserinfo}
 	host2nick = {"FunBot":net.nick}
 	s = net.s
 	irc = net.conn
