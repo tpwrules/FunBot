@@ -72,13 +72,14 @@ class NetworkConnection:
 			self._lock.release()
 			
 class GameIrc:
-	def __init__(self, net, gamename, dest, notice, prefix, host2nick):
+	def __init__(self, net, gamename, dest, notice, prefix, host2nick, netname):
 		self._net = net
 		self._host2nick = host2nick
 		self._gamename = gamename
 		self._dest = dest
 		self._notice = notice
 		self._prefix = prefix
+		self._netname = netname
 	def quote(self, data):
 		self._net.quote(data)
 	def send(self, data):
@@ -95,14 +96,14 @@ class GameIrc:
 			except:
 				return None
 		try:
-			return userdb[0][userdb[1][self._net._name+hostname]][1][self._gamename]
+			return userdb[0][userdb[1][self._netname+hostname]][1][self._gamename]
 		except:
 			return None
 	def setuserdata(self, hostname, data):
 		if hostname == "FunBot":
 			userdb[0]["FunBot"][1][self._gamename] = data
 			return
-		userdb[0][userdb[1][self._net._name+hostname]][1][self._gamename] = data
+		userdb[0][userdb[1][self._netname+hostname]][1][self._gamename] = data
 	def getprefix(self):
 		return self._prefix
 	def getnick(self, hostname):
@@ -213,7 +214,7 @@ def network_handler(net):
 							chancfg = Container()
 							chancfg.currgame = None
 							chancfg.prefix = net.prefix if not config_parser.has_option(chan2name[parts[3]], "prefix") else config_parser.get(chan2name[parts[3]], "prefix")
-							chancfg.allowedgames = [] if not config_parser.has_option(chan2name[parts[3]], "games") else config_parser.get(chan2name[parts[3]], "games").split(",")
+							chancfg.allowedgames = False if not config_parser.has_option(chan2name[parts[3]], "games") else config_parser.get(chan2name[parts[3]], "games").split(",")
 							chancfg.playerlist = []
 							chancfg.startplayer = ""
 							chancfg.playing = 0
@@ -240,8 +241,6 @@ def network_handler(net):
 					if loggedin:
 						user = usersloggedin[hostname].username
 						admin = user in global_config.admins
-					if handledualcmd(cmd, parts[4:], admin, (False, parts[2], nick, irc)):
-						continue
 					if parts[1] == "PRIVMSG" and parts[2] == net.nick:
 						log("[STATUS] Received PM from "+nick)
 						cmd = parts[3][1:].lower()
@@ -305,6 +304,8 @@ def network_handler(net):
 					elif parts[1] == "PRIVMSG" and parts[3][:2] == ":"+channels[parts[2]].prefix:
 						cmd = parts[3][2:].lower()
 						chan = channels[parts[2]]
+						if handledualcmd(cmd, parts[4:], admin, (False, parts[2], nick, irc)):
+							continue
 						if cmd == "start":
 							if not loggedin:
 								irc.notice(nick, "You must be logged in!")
@@ -320,10 +321,11 @@ def network_handler(net):
 							if game not in games:
 								irc.notice(nick, "That game doesn't exist!")
 								continue
-							if game not in chan.allowedgames:
-								irc.notice(nick, "You can't play that game in this channel!")
-								continue
-							gameirc = GameIrc(irc, game, parts[2], False, chan.prefix, host2nick)
+							if chan.allowedgames != False:
+								if game not in chan.allowedgames:
+									irc.notice(nick, "You can't play that game in this channel!")
+									continue
+							gameirc = GameIrc(irc, game, parts[2], False, chan.prefix, host2nick, netname)
 							try:
 								options = parts[5:]
 							except:
@@ -353,6 +355,8 @@ def network_handler(net):
 							if chan.playing == 2:
 								irc.notice(nick, "A game is already being played!")
 								continue
+							if hostname in chan.playerlist:
+								irc.notice(nick, "You have already joined!")
 							chan.playerlist.append(hostname)
 							usersloggedin[hostname].chanlist.append(parts[2])
 							try:
@@ -362,14 +366,14 @@ def network_handler(net):
 								continue
 							irc.privmsg(parts[2], nick+" has joined the game!")
 						elif cmd == "play":
-							if chan.startplayer != hostname:
-								irc.notice(nick, "You didn't start this game!")
-								continue
 							if chan.playing == 0:
 								irc.notice(nick, "Start a game first!")
 								continue
 							if chan.playing == 2:
 								irc.notice(nick, "The game is already being played!")
+								continue
+							if chan.startplayer != hostname:
+								irc.notice(nick, "You didn't start this game!")
 								continue
 							try:
 								result = chan.currgame.start()
@@ -402,17 +406,17 @@ def network_handler(net):
 							if chan.playing == 0:
 								irc.notice(nick, "There is no game to stop!")
 								continue
+							try:
+								chan.currgame.stop()
+							except:
+								handle_plugin_error(irc, chan, parts[2], usersloggedin)
+								continue
 							chan.currgame = None
 							chan.playing = 0
 							chan.startplayer = ""
 							for x in chan.playerlist:
 								usersloggedin[x].chanlist.remove(parts[2])
 							chan.playerlist = []
-							try:
-								chan.currgame.stop()
-							except:
-								handle_plugin_error(irc, chan, parts[2], usersloggedin)
-								continue
 							irc.privmsg(parts[2], "The game has been stopped!")
 						elif chan.playing != 0:
 							try:
