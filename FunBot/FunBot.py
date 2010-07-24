@@ -357,6 +357,7 @@ def network_handler(net):
 								continue
 							if hostname in chan.playerlist:
 								irc.notice(nick, "You have already joined!")
+								continue
 							chan.playerlist.append(hostname)
 							usersloggedin[hostname].chanlist.append(parts[2])
 							try:
