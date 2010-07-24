@@ -134,11 +134,11 @@ def dualcmdsend(stuff, text):
 	else:
 		stuff[3].privmsg(stuff[1], stuff[2]+": "+text)
 	
-def handledualcmd(cmd, params, admin, stuff):
+def handledualcmd(cmd, params, admin, user, stuff):
 	if cmd == "help":
 		if len(params) == 0:
 			dualcmdsend(stuff, "Help displays help for built-in and game commands.")
-			dualcmdsend(stuff, "Built-in commands: help, register, addhm, delhm, play, join, stop")
+			dualcmdsend(stuff, "Built-in commands: help, register, addhm, delhm, play, join, stop, stats")
 			if admin:
 				dualcmdsend(stuff, "Administrator commands: quote, reload")
 			dualcmdsend(stuff, "Games loaded: "+", ".join(games.keys()))
@@ -183,6 +183,9 @@ def handledualcmd(cmd, params, admin, stuff):
 		elif params[0] == "stop":
 			dualcmdsend(stuff, "Syntax: stop")
 			dualcmdsend(stuff, "Stops the current game. The user that started this game must issue this command.")
+		elif params[0] == "stats":
+			dualcmdsend(stuff, "Syntax: stats <game> [user]")
+			dualcmdsend(stuff, "Shows stats for game. If user is specified, shows stats for that user, otherwise, shows stats for the user that issued the command. Must specify user if the person who issued the command is not logged in.")			
 		elif admin:
 			if params[0] == "quote":
 				dualcmdsend(stuff, "Syntax: quote <data>")
@@ -190,6 +193,31 @@ def handledualcmd(cmd, params, admin, stuff):
 			elif params[0] == "reload":
 				dualcmdsend(stuff, "Syntax: reload <game>")
 				dualcmdsend(stuff, "Reloads the specified game. This command can only be issued via PM.")
+	elif cmd == "stats":
+		try:
+			game = params[0]
+		except:
+			dualcmdsend(stuff, "What game do you want stats for?")
+			return True
+		try:
+			user_ = params[1]
+		except:
+			if user == "":
+				dualcmdsend(stuff, "You must specify a user!")
+				return True
+			user_ = user
+		try:
+			userdata = userdb[0][user_][1][game]
+		except:
+			dualcmdsend(stuff, "No stats for that game and user!")
+			return True
+		try:
+			result = games[game].show_stats(userdata)
+		except:
+			dualcmdsend(stuff, "Stats could not be retrieved!")
+			return True
+		for x in result.split("\n"):
+			dualcmdsend(stuff, x)
 	elif admin:
 		if cmd == "quote":
 			stuff[3].quote(" ".join(params))
@@ -320,7 +348,7 @@ def network_handler(net):
 							del usersloggedin[hostname]
 							irc.notice(nick, "Hostname successfully deleted! You have been logged out as well")
 						else:
-							if handledualcmd(cmd, parts[4:], admin, (True, nick, nick, irc)):
+							if handledualcmd(cmd, parts[4:], admin, user, (True, nick, nick, irc)):
 								continue
 							if not admin:
 								continue
@@ -340,7 +368,7 @@ def network_handler(net):
 					elif parts[1] == "PRIVMSG" and parts[3][:2] == ":"+channels[parts[2]].prefix:
 						cmd = parts[3][2:].lower()
 						chan = channels[parts[2]]
-						if handledualcmd(cmd, parts[4:], admin, (False, parts[2], nick, irc)):
+						if handledualcmd(cmd, parts[4:], admin, user, (False, parts[2], nick, irc)):
 							continue
 						if cmd == "start":
 							if not loggedin:
