@@ -114,7 +114,7 @@ def handle_exception():
 
 def handle_plugin_error(irc, chandata, channame, loggedin):
 	handle_exception()
-	irc.privmsg(channame, "An internal plugin error has occurred! The game will have to be ended :(")
+	irc.privmsg(channame, "A plugin error has occurred! The game will have to be ended :(")
 	chandata.currgame = None
 	chandata.playing = 0
 	chandata.startplayer = ""
@@ -156,12 +156,18 @@ def handledualcmd(cmd, params, admin, stuff):
 		elif params[0] == "help":
 			dualcmdsend(stuff, "Syntax: help <command|game> [command]")
 			dualcmdsend(stuff, "This command shows the help for what's issued. If a built-in command is issued, shows help for that. If a game name is issued, shows help for that game. If a game name and a command are issued, shows help for that command in game.")
-		elif params[0] == "play":
-			dualcmdsend(stuff, "Syntax: play <game>")
-			dualcmdsend(stuff, "Starts playing game. Only logged in users may start this.")
+		elif params[0] == "start":
+			dualcmdsend(stuff, "Syntax: start <game>")
+			dualcmdsend(stuff, "Starts the joining process for game. Only logged in users may start a game.")
 		elif params[0] == "join":
 			dualcmdsend(stuff, "Syntax: join")
 			dualcmdsend(stuff, "Joins the current game. Only logged in users may join.")
+		elif params[0] == "play":
+			dualcmdsend(stuff, "Syntax: play")
+			dualcmdsend(stuff, "Starts play for the current game. The user that started the game must issue this command.")
+		elif params[0] == "stop":
+			dualcmdsend(stuff, "Syntax: stop")
+			dualcmdsend(stuff, "Stops the current game. The user that started this game must issue this command.")
 		elif admin:
 			if params[0] == "quote":
 				dualcmdsend(stuff, "Syntax: quote <data>")
@@ -234,6 +240,8 @@ def network_handler(net):
 					if loggedin:
 						user = usersloggedin[hostname].username
 						admin = user in global_config.admins
+					if handledualcmd(cmd, parts[4:], admin, (False, parts[2], nick, irc)):
+						continue
 					if parts[1] == "PRIVMSG" and parts[2] == net.nick:
 						log("[STATUS] Received PM from "+nick)
 						cmd = parts[3][1:].lower()
@@ -297,12 +305,12 @@ def network_handler(net):
 					elif parts[1] == "PRIVMSG" and parts[3][:2] == ":"+channels[parts[2]].prefix:
 						cmd = parts[3][2:].lower()
 						chan = channels[parts[2]]
-						if cmd == "play":
+						if cmd == "start":
 							if not loggedin:
 								irc.notice(nick, "You must be logged in!")
 								continue
 							if chan.playing != 0:
-								irc.notice(nick, "A game is already being played!")
+								irc.notice(nick, "A game has already been started!")
 								continue
 							try:
 								game = parts[4]
@@ -333,6 +341,7 @@ def network_handler(net):
 							except:
 								handle_plugin_error(irc, chan, parts[2], usersloggedin)
 								continue
+							chan.playing = 1
 							irc.privmsg(parts[2], "Game is opening! Type "+chan.prefix+"join to join!")
 						elif cmd == "join":
 							if not loggedin:
@@ -352,7 +361,74 @@ def network_handler(net):
 								handle_plugin_error(irc, chan, parts[2], usersloggedin)
 								continue
 							irc.privmsg(parts[2], nick+" has joined the game!")
-						handledualcmd(cmd, parts[4:], admin, (False, parts[2], nick, irc))
+						elif cmd == "play":
+							if chan.startplayer != hostname:
+								irc.notice(nick, "You didn't start this game!")
+								continue
+							if chan.playing == 0:
+								irc.notice(nick, "Start a game first!")
+								continue
+							if chan.playing == 2:
+								irc.notice(nick, "The game is already being played!")
+								continue
+							try:
+								result = chan.currgame.start()
+							except:
+								handle_plugin_error(irc, chan, parts[2], usersloggedin)
+								continue
+							if result == 0:
+								pass
+							elif result == 1:
+								chan.playerlist.append("FunBot")
+								try:
+									chan.currgame.join(hostname)
+								except:
+									handle_plugin_error(irc, chan, parts[2], usersloggedin)
+									continue
+								irc.privmsg(parts[2], host2nick["FunBot"]+" has joined the game!")
+							else:
+								try:
+									irc.notice(nick, result)
+								except:
+									handle_plugin_error(irc, chan, parts[2], usersloggedin)
+								continue
+							irc.privmsg(parts[2], "Players: "+", ".join([host2nick[hn] for hn in chan.playerlist]))
+							irc.privmsg(parts[2], "The game has been started!")
+							chan.playing = 2
+						elif cmd == "stop":
+							if chan.startplayer != hostname:
+								irc.notice(nick, "You didn't start this game!")
+								continue
+							if chan.playing == 0:
+								irc.notice(nick, "There is no game to stop!")
+								continue
+							chan.currgame = None
+							chan.playing = 0
+							chan.startplayer = ""
+							for x in chan.playerlist:
+								usersloggedin[x].chanlist.remove(parts[2])
+							chan.playerlist = []
+							try:
+								chan.currgame.stop()
+							except:
+								handle_plugin_error(irc, chan, parts[2], usersloggedin)
+								continue
+							irc.privmsg(parts[2], "The game has been stopped!")
+						elif chan.playing != 0:
+							try:
+								result = chan.currgame.handlecmd(cmd.lower(), parts[4:], hostname in chan.playerlist, hostname, host2nick[hostname])
+							except:
+								handle_plugin_error(irc, chan, parts[2], usersloggedin)
+								continue
+							if result == True:
+								irc.privmsg(parts[2], "The game has finished!")
+								chan.currgame = None
+								chan.playing = 0
+								chan.startplayer = ""
+								for x in chan.playerlist:
+									usersloggedin[x].chanlist.remove(parts[2])
+								chan.playerlist = []
+								saveuserdb()
 				elif state == 0:
 					if parts[1] == "001":
 						state = 1

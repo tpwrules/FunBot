@@ -19,3 +19,37 @@ __gamename__ = "blackjack"
 #LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 #OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 #THE SOFTWARE.
+
+import random
+
+class Blackjack:
+	def __init__(self, irc, options):
+		self.irc = irc
+		self.players = []
+		self.started = False
+		self.currplayer = 0
+		self.deck = [1,2,3,4,5,6,7,8,9,10,11,12,13]*4
+		random.shuffle(self.deck)
+	def join(self, hostname):
+		self.players.append([hostname, []])
+		if self.irc.getuserdata(hostname) == None:
+			self.irc.setuserdata(hostname, [0])
+	def start(self):
+		if len(self.players) == 1:
+			return 1
+		elif len(self.players) == 0:
+			return "You need at least one player!"
+		return 0
+	def stop(self):
+		pass
+	def handlecmd(self, cmd, params, playing, hostname, nick):
+		self.irc.send("yaaay! Hi "+nick+"!")
+		
+def start(irc, options):
+	return Blackjack(irc, options)
+	
+def show_stats(stats):
+	return "Number of games played: "+str(stats[0])
+	
+def show_help(cmd):
+	return False
