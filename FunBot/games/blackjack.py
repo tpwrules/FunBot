@@ -113,10 +113,10 @@ def show_stats(stats):
 def show_help(cmd):
 	if cmd == None:
 		return "This is a standard blackjack game, where the goal is to get to 21 without going over.\n\
-			Commands: hit, stay"
+		Commands: hit, stay"
 	if cmd == "hit":
 		return "Syntax: hit\n\
-			This command will make you draw a card from the deck when it's your turn."
+		This command will make you draw a card from the deck when it's your turn."
 	if cmd == "stay":
 		return "Syntax: stay\n\
-			This command will go to the next player."
+		This command will go to the next player."
