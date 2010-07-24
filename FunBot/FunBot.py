@@ -57,6 +57,10 @@ class NetworkConnection:
 		self._lock.acquire()
 		self._queue.insert(0, data+"\r\n")
 		self._lock.release()
+	def privmsg(self, dest, msg):
+		self.quote("PRIVMSG "+dest+" :"+msg)
+	def notice(self, dest, msg):
+		self.quote("NOTICE "+dest+" :"+msg)
 	def _handlequeue(self):
 		while self._running:
 			time.sleep(self._st)
@@ -66,10 +70,18 @@ class NetworkConnection:
 				continue
 			self._s.send(self._queue.pop())
 			self._lock.release()
+			
+def saveuserdb():
+	global userdb
+	log("[STATUS] Saving user database")
+	pickle.dump(userdb, open(config_parser.get("config", "userfile"), "w"))
 	
 def network_handler(net):
 	channels = {}
 	name2chan = {}
+	chan2name = {}
+	usersloggedin = {}
+	host2nick = {}
 	s = net.s
 	irc = net.conn
 	state = 0
@@ -93,7 +105,60 @@ def network_handler(net):
 					if parts[0] == servername:
 						if parts[1] == "366":
 							log("[STATUS] Successfully joined "+parts[3])
+							chancfg = Container()
+							chancfg.currgame = None
+							chancfg.prefix = net.prefix if not config_parser.has_option(chan2name[parts[3]], "prefix") else config_parser.get(chan2name[parts[3]], "prefix")
+							chancfg.allowedgames = [] if not config_parser.has_option(chan2name[parts[3]], "games") else config_parser.get(chan2name[parts[3]], "games").split(",")
+							chancfg.playerlist = []
+							chancfg.startplayer = ""
+							channels[parts[3]] = chancfg
+						elif parts[1] == "005":
+							for x in parts[3:]:
+								if x[:8] == "NETWORK=":
+									netname = x[8:]
 						continue
+					nickend = parts[0].find("!")
+					nick = parts[0][1:nickend]
+					hostname = parts[0][nickend:]
+					if netname+hostname in userdb[1]:
+						if hostname not in usersloggedin:
+							userinfo = Container()
+							userinfo.username = userdb[1][netname+hostname]
+							userinfo.chanlist = []
+							usersloggedin[hostname] = userinfo
+							host2nick[hostname] = nick
+							irc.notice(nick, "Hello there! You have been automatically logged in.")
+					loggedin = hostname in usersloggedin
+					if loggedin:
+						user = usersloggedin[hostname].username
+						admin = user in global_config.admins
+					if parts[1] == "PRIVMSG" and parts[2] == net.nick:
+						log("[STATUS] Received PM from "+nick)
+						cmd = parts[3][1:].lower()
+						if cmd == "register":
+							try:
+								username = parts[4]
+								password = parts[5]
+							except:
+								irc.notice(nick, "Error! Not enough parameters! Syntax: register <user> <pass>")
+								continue
+							if username in userdb[0]:
+								irc.notice(nick, "Error! A user with this name already exists!")
+								continue
+							if netname+hostname in userdb[1]:
+								irc.notice(nick, "Error! This hostname is already being used with another account! Please register with another hostname")
+								continue
+							userdblock.acquire()
+							userdb[0][username] = [password, {}]
+							userdb[1][netname+hostname] = username
+							saveuserdb()
+							userdblock.release()
+							userinfo = Container()
+							userinfo.username = username
+							userinfo.chanlist = []
+							usersloggedin[hostname] = userinfo
+							host2nick[hostname] = nick
+							irc.notice(nick, "You have been successfully registered and logged in!")
 				elif state == 0:
 					if parts[1] == "001":
 						state = 1
@@ -110,6 +175,7 @@ def network_handler(net):
 								log("[WARNING] Improper section format, not joining")
 								continue
 							name2chan[x] = chan
+							chan2name[chan] = x
 							irc.quote("JOIN "+chan+kw)
 	except:
 		raise
@@ -163,12 +229,15 @@ try:
 	userdb = pickle.load(open(config_parser.get("config", "userfile")))
 except:
 	log("[WARNING] User database could not be loaded, creating a new one")
-	userdb = {"FunBot":[None,{}]}
+	userdb = [{"FunBot":[None,{}]}, {}]
 	try:
-		pickle.dump({"FunBot":[None,{}]}, open(config_parser.get("config", "userfile"), "w"))
+		pickle.dump([{"FunBot":[None,{}]},{}], open(config_parser.get("config", "userfile"), "w"))
+		saveuserdb()
 	except:
 		log("[ERROR] New user database could not be created!")
 		sys.exit(1)
+		
+userdblock = threading.Lock()
 
 global_config.userfile = config_parser.get("config", "userfile")
 
@@ -232,4 +301,7 @@ try:
 		time.sleep(1)
 except KeyboardInterrupt:
 	log("[STATUS] Quitting")
+	userdblock.acquire()
+	saveuserdb()
+	userdblock.release()
 	os._exit(1)
