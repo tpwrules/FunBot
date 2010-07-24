@@ -138,9 +138,9 @@ def handledualcmd(cmd, params, admin, stuff):
 	if cmd == "help":
 		if len(params) == 0:
 			dualcmdsend(stuff, "Help displays help on built-in commands.")
-			dualcmdsend(stuff, "Built-in commands: help, register, addhm, delhm, play, join")
+			dualcmdsend(stuff, "Built-in commands: help, register, addhm, delhm, play, join, stop")
 			if admin:
-				dualcmdsend(stuff, "Administrator commands: quote")
+				dualcmdsend(stuff, "Administrator commands: quote, reload")
 			dualcmdsend(stuff, "Games loaded: "+", ".join(games.keys()))
 			return
 		if params[0] in games:
@@ -173,6 +173,9 @@ def handledualcmd(cmd, params, admin, stuff):
 			if params[0] == "quote":
 				dualcmdsend(stuff, "Syntax: quote <data>")
 				dualcmdsend(stuff, "Sends data to server.")
+			elif params[0] == "reload":
+				dualcmdsend(stuff, "Syntax: reload <game>")
+				dualcmdsend(stuff, "Reloads the specified game. This command can only be issued via PM.")
 	elif admin:
 		if cmd == "quote":
 			stuff[3].quote(" ".join(params))
@@ -303,7 +306,23 @@ def network_handler(net):
 							del usersloggedin[hostname]
 							irc.notice(nick, "Hostname successfully deleted! You have been logged out as well")
 						else:
-							handledualcmd(cmd, parts[4:], admin, (True, nick, nick, irc))
+							if handledualcmd(cmd, parts[4:], admin, (True, nick, nick, irc)):
+								continue
+							if not admin:
+								continue
+							if cmd == "reload":
+								try:
+									module = games[parts[4]]
+								except:
+									irc.notice(nick, "No such game or game not specified!")
+									continue
+								try:
+									reload(module)
+								except:
+									irc.notice(nick, "Game could not be reloaded!")
+									handle_exception()
+									continue
+								irc.notice(nick, "Game successfully reloaded!")
 					elif parts[1] == "PRIVMSG" and parts[3][:2] == ":"+channels[parts[2]].prefix:
 						cmd = parts[3][2:].lower()
 						chan = channels[parts[2]]
@@ -388,6 +407,7 @@ def network_handler(net):
 								pass
 							elif result == 1:
 								chan.playerlist.append("FunBot")
+								usersloggedin["FunBot"].chanlist.append(parts[2])
 								try:
 									chan.currgame.join(hostname)
 								except:
