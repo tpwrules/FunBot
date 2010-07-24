@@ -1,6 +1,4 @@
 __gamename__ = "uno"
-__helptext__ = "The classic Uno game!"
-__players__ = 1
 
 #Copyright (c) 2010 Thomas Watson
 
@@ -59,15 +57,15 @@ class Uno:
 			self.deck.append([13, -1])
 			self.deck.append([14, -1])
 		random.shuffle(self.deck)
-	def join(self, user):
+	def join(self, hostname):
 		hand = []
 		for x in xrange(7):
 			hand.append(self.popcard())
-		if user != "FunBot":
-			self.irc.notice(self.irc.getnick(user), "Your cards: "+" ".join([self.getcardtext(card) for card in hand]))
-			if self.irc.getuserdata(user) == None:
-				self.irc.setuserdata(user, [0, 0])
-		self.players.append([user, hand])
+		if hostname != "FunBot":
+			self.irc.notice(self.irc.getnick(hostname), "Your cards: "+" ".join([self.getcardtext(card) for card in hand]))
+		if self.irc.getuserdata(hostname) == None:
+			self.irc.setuserdata(hostname, [0, 0])
+		self.players.append([hostname, hand])
 	def getcardtext(self, card_):
 		text = ""
 		card = card_[0]
@@ -107,19 +105,18 @@ class Uno:
 			random.shuffle(self.deck)
 		return card
 	def canstart(self):
+		if len(self.players) == 1:
+			return 1
 		return 0
 	def start(self):
 		self.started = True
-		if len(self.players) == 1:
-			self.irc.send("FunBot has joined the game!")
-			self.join("FunBot")
 		self.topcard = self.popcard()
 		self.runturn(True)
 	def stop(self):
 		pass
 	def handleactioncard(self):
 		card = self.topcard[0]
-		player = self.players[self.currplayer][0]
+		player = self.irc.getnick(self.players[self.currplayer][0])
 		if card == 10:
 			self.irc.send(player + " draws TWO cards and is \x034\x02SKIPPED!")
 			for x in xrange(2):
@@ -152,10 +149,11 @@ class Uno:
 		return False
 	def runturn(self, firstturn=False):
 		player = self.players[self.currplayer]
-		self.irc.send(player[0] + " is up")
+		nick = self.irc.getnick(player[0])
+		self.irc.send(nick + " is up")
 		self.irc.send("Top card: "+self.getcardtext(self.topcard))
 		if player[0] != "FunBot":
-			self.irc.notice(self.irc.getnick(player[0]), " ".join([self.getcardtext(card) for card in player[1]]))
+			self.irc.notice(nick, " ".join([self.getcardtext(card) for card in player[1]]))
 		if self.topcard[0] > 9 and firstturn == True:
 			self.handleactioncard()
 			self.runturn()
@@ -163,69 +161,55 @@ class Uno:
 			return self.handleai()
 		self.drew = False
 	def handleai(self):
-		#print "Entering handleai"
 		me = self.players[self.currplayer]
-		#print me
+		nick = self.irc.getnick("FunBot")
+		prefix = self.irc.getprefix()
 		playablecards = map(self.appendpoints, filter(self.canbeplayed, me[1]))
-		#print "Playable cards:", playablecards
 		if len(playablecards) == 0:
-			#print "No playable cards!"
 			if self.drew == True:
-				#print "skipping"
-				self.irc.send(".skip")
-				return self.handlecmd("s", [], True, "FunBot", "tpw_rules")
+				self.irc.send(prefix+"skip")
+				return self.handlecmd("s", [], True, "FunBot", nick)
 			else:
-				#print "drawing"
-				self.irc.send(".draw")
-				return self.handlecmd("d", [], True, "FunBot", "tpw_rules")
+				self.irc.send(prefix+"draw")
+				return self.handlecmd("d", [], True, "FunBot", nick)
 		playablecards.sort()
 		playablecards.reverse()
-		#print "sorted playable cards:", playablecards
 		preferredcards = []
 		for x in playablecards:
 			if x[0] == 50:
 				continue
 			preferredcards.append(x)
-		#print "preferred cards", preferredcards
 		if len(preferredcards) == 0:
-			#print "no preferred cards, using wilds"
 			pointvals = [[0,"red"],[0,"green"],[0,"blue"],[0,"yellow"]]
-			#print "calculating points"
 			for x in me[1]:
 				if x[1] == -1:
 					continue
 				pointvals[x[1]][0] += self.appendpoints(x)[0]
 			pointvals.sort()
 			pointvals.reverse()
-			#print "points:", pointvals
 			if playablecards[0][1] == 13:
-				#print "playing wild"
-				self.irc.send(".play wild "+pointvals[0][1])
-				return self.handlecmd("p", ["wild", pointvals[0][1]], True, "FunBot", "tpw_rules")
+				self.irc.send(prefix+"play wild "+pointvals[0][1])
+				return self.handlecmd("p", ["wild", pointvals[0][1]], True, "FunBot", nick)
 			else:
 				#print "playing wdf"
-				self.irc.send(".play wdf "+pointvals[0][1])
-				return self.handlecmd("p", ["wdf", pointvals[0][1]], True, "FunBot", "tpw_rules")
+				self.irc.send(prefix+"play wdf "+pointvals[0][1])
+				return self.handlecmd("p", ["wdf", pointvals[0][1]], True, "FunBot", nick)
 		preferredcards2 = []
 		for x in preferredcards:
 			if x[2] != self.topcard[1]:
 				continue
 			preferredcards2.append(x)
-		#print "preferred cards 2", preferredcards2
 		if len(preferredcards2) == 0:
-			#print "preferred cards 2 empty"
 			preferredcards2 = preferredcards
 		card_ = preferredcards2[0]
-		#print "gonna play", card_
 		color = ["red", "green", "blue", "yellow"][card_[2]]
-		#print "color", color
 		if card_[0] < 10:
 			card = str(card_[0])
 		else:
 			card = ["drawtwo", "reverse", "skip"][card_[1]-10]
 		#print "card", card
-		self.irc.send(".play "+color+" "+card)
-		return self.handlecmd("p", [color, card], True, "FunBot", "tpw_rules")
+		self.irc.send(prefix+"play "+color+" "+card)
+		return self.handlecmd("p", [color, card], True, "FunBot", nick)
 	def appendpoints(self, card):
 		if card[0] < 10:
 			return [card[0], card[0], card[1]]
@@ -258,38 +242,37 @@ class Uno:
 		elif t == "s" or t == "skip":
 			return 12
 		return -1
-	def handlewin(self, user):
-		self.irc.send(user+" wins!!")
+	def handlewin(self, hostname):
+		nick = self.irc.getnick(hostname)
+		self.irc.send(nick+" wins!!")
 		points = 0
 		for player in self.players:
-			if player[0] == user:
+			if player[0] == hostname:
 				continue
-			self.irc.send(player[0]+"'s cards: "+" ".join([self.getcardtext(c) for c in player[1]]))
+			self.irc.send(self.irc.getnick(player[0])+"'s cards: "+" ".join([self.getcardtext(c) for c in player[1]]))
 			pointvals = sum([self.appendpoints(c)[0] for c in player[1]])
 			userdata = self.irc.getuserdata(player[0])
-			if player[0] != "FunBot":
-				self.irc.setuserdata(player[0], [userdata[0]-pointvals, userdata[1]+1])
+			self.irc.setuserdata(player[0], [userdata[0]-pointvals, userdata[1]+1])
 			points += pointvals
-		userdata = self.irc.getuserdata(user)
-		if user != "FunBot":
-			self.irc.setuserdata(user, [userdata[0]+points, userdata[1]+1])
-		self.irc.send(user+" gets "+str(points)+" points!")
-	def handlecmd(self, cmd, args, playing, user, nick):
+		userdata = self.irc.getuserdata(hostname)
+		self.irc.setuserdata(hostname, [userdata[0]+points, userdata[1]+1])
+		self.irc.send(nick+" gets "+str(points)+" points!")
+	def handlecmd(self, cmd, args, playing, hostname, nick):
 		cmd = cmd.lower()
 		if not self.started:
 			return
 		if cmd == "count":
-			self.irc.send("Number of cards: "+", ".join([p[0]+" has "+str(len(p[1])) for p in self.players]))
+			self.irc.send("Number of cards: "+", ".join([self.irc.getnick(p[0])+" has "+str(len(p[1])) for p in self.players]))
 			return
 		if not playing:
 			return
-		if self.players[self.currplayer][0] != user:
+		if self.players[self.currplayer][0] != hostname:
 			self.irc.notice(nick, "It's not your turn!")
 			return
 		if cmd == "p" or cmd == "put":
 			player = self.players[self.currplayer]
 			if len(args) < 2:
-				self.irc.notice(nick, "Invalid play!1")
+				self.irc.notice(nick, "Invalid play!")
 				return
 			t = args[0].lower()
 			color = self.getcolor(t)
@@ -303,20 +286,20 @@ class Uno:
 					card = 14
 					wcolor = self.getcolor(args[1].lower())
 				else:
-					self.irc.notice(nick, "Invalid play!2")
+					self.irc.notice(nick, "Invalid play!")
 					return
 			if card == -1:
 				card = self.getcard(args[1].lower())
 				if card == -1:
-					self.irc.notice(nick, "Invalid play!3")
+					self.irc.notice(nick, "Invalid play!")
 					return
 			if self.canbeplayed([card, color]) == False:
-				self.irc.notice(nick, "Invalid play!4")
+				self.irc.notice(nick, "Invalid play!")
 				return
 			try:
 				x = player[1].index([card, color])
 			except:
-				self.irc.notice(nick, "Invalid play!5 "+str(card)+" - "+str(color))
+				self.irc.notice(nick, "Invalid play!")
 				return
 			player[1].remove([card, color])
 			if wcolor != -1:
@@ -324,12 +307,12 @@ class Uno:
 			else:
 				self.topcard = [card, color]
 			self.drew = False
-			self.irc.send(user+" plays a "+self.getcardtext([card, color]))
+			self.irc.send(nick+" plays a "+self.getcardtext([card, color]))
 			if len(player[1]) < 2:
 				if len(player[1]) == 1:
-					self.irc.send("\x02"+user+" has UNO!!")
+					self.irc.send("\x02"+nick+" has UNO!!")
 				else:
-					self.handlewin(user)
+					self.handlewin(hostname)
 					return True
 			self.currplayer = (self.currplayer+self.direction)%len(self.players)
 			self.handleactioncard()
@@ -340,11 +323,11 @@ class Uno:
 				return
 			self.drew = True
 			card = self.popcard()
-			if user != "FunBot":
+			if hostname != "FunBot":
 				self.irc.notice(nick, "You drew: "+self.getcardtext(card))
-			self.irc.send(user+" drew a card")
+			self.irc.send(nick+" drew a card")
 			self.players[self.currplayer][1].append(card)
-			if user == "FunBot":
+			if hostname == "FunBot":
 				return self.handleai()
 		elif cmd == "s" or cmd == "skip":
 			if self.drew == False:
