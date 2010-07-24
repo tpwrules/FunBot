@@ -347,4 +347,24 @@ def show_stats(userdata):
 	return "Total points: "+str(userdata[0])+", Number of games played: "+str(userdata[1])
 	
 def show_help(cmd):
-	return
+	if cmd == None:
+		return "This is everybody's favorite card game, Uno!\nCommands: count, put, draw, skip, cards\nOther topics: colornames, cardnames, rules, shortforms"
+	if cmd == "count":
+		return "Syntax: count\nShows how many cards each player has."
+	if cmd == "put":
+		return "Syntax: <put|p> <color> <card>\nPlays the card that has the color color. If you want to play a wild or wild draw four, the color is wild or wdf and card is the color you want it to change to."
+	if cmd == "draw":
+		return "Syntax: <draw|d>\nDraws a card from the deck. Once you draw a card, you must skip or play the card."
+	if cmd == "skip":
+		return "Syntax: <skip|s>\nSkips your turn. You must draw a card before you can skip."
+	if cmd == "cards":
+		return "Syntax: <cards|c>\nShows the top card and shows you your cards."
+	if cmd == "colornames":
+		return "Colors: red or r, green or g, blue or b, yellow or y"
+	if cmd == "cardnames":
+		return "Cards: 0 through 9, reverse or r, skip or s, drawtwo or dt or d2, wild or w, wdf or wd4"
+	if cmd == "shortforms":
+		return "Short forms: Most commands and cards have a short form that is shorter and easier to type. See the respective help topics for them for the short forms."
+	if cmd == "rules":
+		return "Rules of UNO: Uno is a card game where the goal is to get rid of all your cards.\nPlaying cards: You can play a card if it matches the color or number of the top card. Wild and wild draw four cards can be played on anything and change the color of the top card\nAction cards: Action cards are cards that affect something in the game. Reverse: Reverses the direction of play. Skip: Skips the next player's turn. Draw two: Makes the next player draw two cards and skips their turn. Wild: Changes the color of the deck. Wild draw four: Same as wild, but makes the next player draw four cards and skips their turn\nIf you have no cards to play, you can draw a card. You must play the card you drew or skip your turn."
+	
