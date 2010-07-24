@@ -36,14 +36,16 @@ class Blackjack:
 			self.irc.setuserdata(hostname, [0])
 	def start(self):
 		if len(self.players) == 1:
+			self.started = True
 			return 1
 		elif len(self.players) == 0:
 			return "You need at least one player!"
+		self.started = True
 		return 0
 	def stop(self):
 		pass
 	def handlecmd(self, cmd, params, playing, hostname, nick):
-		self.irc.send("yaaay! Hi "+nick+"!")
+		self.irc.send("yaaay! Hi "+nick+"! You are playing: "+str(playing))
 		
 def start(irc, options):
 	return Blackjack(irc, options)

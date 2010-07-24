@@ -424,11 +424,11 @@ def network_handler(net):
 							irc.privmsg(parts[2], "The game has been started!")
 							chan.playing = 2
 						elif cmd == "stop":
-							if chan.startplayer != hostname:
-								irc.notice(nick, "You didn't start this game!")
-								continue
 							if chan.playing == 0:
 								irc.notice(nick, "There is no game to stop!")
+								continue
+							if chan.startplayer != hostname:
+								irc.notice(nick, "You didn't start this game!")
 								continue
 							try:
 								chan.currgame.stop()
@@ -443,6 +443,9 @@ def network_handler(net):
 							chan.playerlist = []
 							irc.privmsg(parts[2], "The game has been stopped!")
 						elif chan.playing != 0:
+							if not loggedin:
+								irc.notice(nick, "You must be logged in!")
+								continue
 							try:
 								result = chan.currgame.handlecmd(cmd.lower(), parts[4:], hostname in chan.playerlist, hostname, host2nick[hostname])
 							except:
