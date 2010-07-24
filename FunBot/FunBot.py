@@ -71,6 +71,57 @@ class NetworkConnection:
 			self._s.send(self._queue.pop())
 			self._lock.release()
 			
+class GameIrc:
+	def __init__(self, net, gamename, dest, notice, prefix, host2nick):
+		self._net = net
+		self._host2nick = host2nick
+		self._gamename = gamename
+		self._dest = dest
+		self._notice = notice
+		self._prefix = prefix
+	def quote(self, data):
+		self._net.quote(data)
+	def send(self, data):
+		if self._notice:
+			self._net.quote("NOTICE "+dest+" :"+data)
+		else:
+			self._net.quote("PRIVMSG "+dest+" :"+data)
+	def notice(self, nick, data):
+		self._net.quote("NOTICE "+dest+" :"+data)
+	def getuserdata(self, hostname):
+		if hostname == "FunBot":
+			try:
+				return userdb[0]["FunBot"][1][self._gamename]
+			except:
+				return None
+		try:
+			return userdb[0][userdb[1][self._net._name+hostname]][1][self._gamename]
+		except:
+			return None
+	def setuserdata(self, hostname, data):
+		if hostname == "FunBot":
+			userdb[0]["FunBot"][1][self._gamename] = data
+			return
+		userdb[0][userdb[1][self._net._name+hostname]][1][self._gamename] = data
+	def getprefix(self):
+		return self._prefix
+	def getnick(self, hostname):
+		return self._host2nick[hostname]
+			
+def handle_exception():
+	for x in traceback.format_exc().split("\n"):
+		log("[TRACEBACK] "+x)
+
+def handle_plugin_error(irc, chandata, channame, loggedin):
+	handle_exception()
+	irc.privmsg(channame, "An internal plugin error has occurred! The game will have to be ended :(")
+	chandata.currgame = None
+	chandata.playing = 0
+	chandata.startplayer = ""
+	for x in chandata.playerlist:
+		loggedin[x].chanlist.remove(channame)
+	chandata.playerlist = []
+			
 def saveuserdb():
 	global userdb
 	log("[STATUS] Saving user database")
@@ -82,11 +133,13 @@ def dualcmdsend(stuff, text):
 	else:
 		stuff[3].privmsg(stuff[1], stuff[2]+": "+text)
 	
-def handledualcmd(cmd, params, stuff):
+def handledualcmd(cmd, params, admin, stuff):
 	if cmd == "help":
 		if len(params) == 0:
 			dualcmdsend(stuff, "Help displays help on built-in commands.")
-			dualcmdsend(stuff, "Built-in commands: help, register, addhm, delhm")
+			dualcmdsend(stuff, "Built-in commands: help, register, addhm, delhm, play, join")
+			if admin:
+				dualcmdsend(stuff, "Administrator commands: quote")
 			dualcmdsend(stuff, "Games loaded: "+", ".join(games.keys()))
 			return
 		if params[0] in games:
@@ -103,6 +156,23 @@ def handledualcmd(cmd, params, stuff):
 		elif params[0] == "help":
 			dualcmdsend(stuff, "Syntax: help <command|game> [command]")
 			dualcmdsend(stuff, "This command shows the help for what's issued. If a built-in command is issued, shows help for that. If a game name is issued, shows help for that game. If a game name and a command are issued, shows help for that command in game.")
+		elif params[0] == "play":
+			dualcmdsend(stuff, "Syntax: play <game>")
+			dualcmdsend(stuff, "Starts playing game. Only logged in users may start this.")
+		elif params[0] == "join":
+			dualcmdsend(stuff, "Syntax: join")
+			dualcmdsend(stuff, "Joins the current game. Only logged in users may join.")
+		elif admin:
+			if params[0] == "quote":
+				dualcmdsend(stuff, "Syntax: quote <data>")
+				dualcmdsend(stuff, "Sends data to server.")
+	elif admin:
+		if cmd == "quote":
+			stuff[3].quote(" ".join(params))
+		else:
+			return False
+	else:
+		return False
 	return True
 	
 def network_handler(net):
@@ -110,7 +180,7 @@ def network_handler(net):
 	name2chan = {}
 	chan2name = {}
 	usersloggedin = {}
-	host2nick = {}
+	host2nick = {"FunBot":net.nick}
 	s = net.s
 	irc = net.conn
 	state = 0
@@ -140,6 +210,7 @@ def network_handler(net):
 							chancfg.allowedgames = [] if not config_parser.has_option(chan2name[parts[3]], "games") else config_parser.get(chan2name[parts[3]], "games").split(",")
 							chancfg.playerlist = []
 							chancfg.startplayer = ""
+							chancfg.playing = 0
 							channels[parts[3]] = chancfg
 						elif parts[1] == "005":
 							for x in parts[3:]:
@@ -158,6 +229,8 @@ def network_handler(net):
 							host2nick[hostname] = nick
 							irc.notice(nick, "Hello there! You have been automatically logged in.")
 					loggedin = hostname in usersloggedin
+					user = ""
+					admin = False
 					if loggedin:
 						user = usersloggedin[hostname].username
 						admin = user in global_config.admins
@@ -220,7 +293,66 @@ def network_handler(net):
 							del usersloggedin[hostname]
 							irc.notice(nick, "Hostname successfully deleted! You have been logged out as well")
 						else:
-							handledualcmd(cmd, parts[4:], (True, nick, nick, irc))
+							handledualcmd(cmd, parts[4:], admin, (True, nick, nick, irc))
+					elif parts[1] == "PRIVMSG" and parts[3][:2] == ":"+channels[parts[2]].prefix:
+						cmd = parts[3][2:].lower()
+						chan = channels[parts[2]]
+						if cmd == "play":
+							if not loggedin:
+								irc.notice(nick, "You must be logged in!")
+								continue
+							if chan.playing != 0:
+								irc.notice(nick, "A game is already being played!")
+								continue
+							try:
+								game = parts[4]
+							except:
+								irc.notice(nick, "What do you want to play?")
+								continue
+							if game not in games:
+								irc.notice(nick, "That game doesn't exist!")
+								continue
+							if game not in chan.allowedgames:
+								irc.notice(nick, "You can't play that game in this channel!")
+								continue
+							gameirc = GameIrc(irc, game, parts[2], False, chan.prefix, host2nick)
+							try:
+								options = parts[5:]
+							except:
+								options = []
+							try:
+								chan.currgame = games[game].start(gameirc, options)
+							except:
+								handle_plugin_error(irc, chan, parts[2], usersloggedin)
+								continue
+							chan.startplayer = hostname
+							chan.playerlist.append(hostname)
+							usersloggedin[hostname].chanlist.append(parts[2])
+							try:
+								chan.currgame.join(hostname)
+							except:
+								handle_plugin_error(irc, chan, parts[2], usersloggedin)
+								continue
+							irc.privmsg(parts[2], "Game is opening! Type "+chan.prefix+"join to join!")
+						elif cmd == "join":
+							if not loggedin:
+								irc.notice(nick, "You must be logged in!")
+								continue
+							if chan.playing == 0:
+								irc.notice(nick, "Start a game first!")
+								continue
+							if chan.playing == 2:
+								irc.notice(nick, "A game is already being played!")
+								continue
+							chan.playerlist.append(hostname)
+							usersloggedin[hostname].chanlist.append(parts[2])
+							try:
+								chan.currgame.join(hostname)
+							except:
+								handle_plugin_error(irc, chan, parts[2], usersloggedin)
+								continue
+							irc.privmsg(parts[2], nick+" has joined the game!")
+						handledualcmd(cmd, parts[4:], admin, (False, parts[2], nick, irc))
 				elif state == 0:
 					if parts[1] == "001":
 						state = 1
@@ -240,7 +372,7 @@ def network_handler(net):
 							chan2name[chan] = x
 							irc.quote("JOIN "+chan+kw)
 	except:
-		raise
+		handle_exception()
 	
 networks = {}
 
@@ -291,9 +423,9 @@ try:
 	userdb = pickle.load(open(config_parser.get("config", "userfile")))
 except:
 	log("[WARNING] User database could not be loaded, creating a new one")
-	userdb = [{"FunBot":[None,{}]}, {}]
+	userdb = [{"FunBot":[None,{}]}, {"FunBot":"FunBot"}]
 	try:
-		pickle.dump([{"FunBot":[None,{}]},{}], open(config_parser.get("config", "userfile"), "w"))
+		pickle.dump(userdb, open(config_parser.get("config", "userfile"), "w"))
 		saveuserdb()
 	except:
 		log("[ERROR] New user database could not be created!")
@@ -315,6 +447,7 @@ for game in gamelist:
 		__import__("games."+game)
 	except:
 		log("[WARNING] Could not load game")
+		handle_exception()
 		continue
 	m = sys.modules["games."+game]
 	try:
