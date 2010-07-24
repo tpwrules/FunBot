@@ -159,6 +159,34 @@ def network_handler(net):
 							usersloggedin[hostname] = userinfo
 							host2nick[hostname] = nick
 							irc.notice(nick, "You have been successfully registered and logged in!")
+						elif cmd == "addhm":
+							try:
+								username = parts[4]
+								password = parts[5]
+							except:
+								irc.notice(nick, "Error! Not enough parameters! Syntax: addhm <user> <pass>")
+								continue
+							if netname+hostname in userdb[1]:
+								irc.notice(nick, "Error! This hostname is already being used with another account!")
+								continue
+							userdblock.acquire()
+							userdb[1][netname+hostname] = username
+							saveuserdb()
+							userdblock.release()
+							irc.notice(nick, "Hostname successfully added!")
+						elif cmd == "delhm":
+							try:
+								username = parts[4]
+								password = parts[5]
+							except:
+								irc.notice(nick, "Error! Not enough parameters! Syntax: delhm <user> <pass>")
+								continue
+							if len(usersloggedin[hostname].chanlist) != 0:
+								irc.notice(nick, "Because deleting the current hostmask will automatically log you out, you need to finish your games!")
+								continue
+							del userdb[1][netname+hostname]
+							del usersloggedin[hostname]
+							irc.notice(nick, "Hostname successfully deleted! You have been logged out as well")
 				elif state == 0:
 					if parts[1] == "001":
 						state = 1
