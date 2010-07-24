@@ -76,6 +76,35 @@ def saveuserdb():
 	log("[STATUS] Saving user database")
 	pickle.dump(userdb, open(config_parser.get("config", "userfile"), "w"))
 	
+def dualcmdsend(stuff, text):
+	if stuff[0]:
+		stuff[3].notice(stuff[1], text)
+	else:
+		stuff[3].privmsg(stuff[1], stuff[2]+": "+text)
+	
+def handledualcmd(cmd, params, stuff):
+	if cmd == "help":
+		if len(params) == 0:
+			dualcmdsend(stuff, "Help displays help on built-in commands.")
+			dualcmdsend(stuff, "Built-in commands: help, register, addhm, delhm")
+			dualcmdsend(stuff, "Games loaded: "+", ".join(games.keys()))
+			return
+		if params[0] in games:
+			return
+		if params[0] == "register":
+			dualcmdsend(stuff, "Syntax: register <user> <pass>")
+			dualcmdsend(stuff, "This command registers the user and pass specified and automatically adds the hostmask the command is issued from to the account. Note: Can only be issued via PM.")
+		elif params[0] == "addhm":
+			dualcmdsend(stuff, "Syntax: addhm <user> <pass>")
+			dualcmdsend(stuff, "This command adds the hostmask the command is issued from to user's account. Note: Can only be issued via PM.")
+		elif params[0] == "delhm":
+			dualcmdsend(stuff, "Syntax: delhm <user> <pass>")
+			dualcmdsend(stuff, "This command deletes the hostmask the command is issued from user's account. Note: Can only be issued via PM.")
+		elif params[0] == "help":
+			dualcmdsend(stuff, "Syntax: help <command|game> [command]")
+			dualcmdsend(stuff, "This command shows the help for what's issued. If a built-in command is issued, shows help for that. If a game name is issued, shows help for that game. If a game name and a command are issued, shows help for that command in game.")
+	return True
+	
 def network_handler(net):
 	channels = {}
 	name2chan = {}
@@ -184,9 +213,14 @@ def network_handler(net):
 							if len(usersloggedin[hostname].chanlist) != 0:
 								irc.notice(nick, "Because deleting the current hostmask will automatically log you out, you need to finish your games!")
 								continue
+							userdblock.acquire()
 							del userdb[1][netname+hostname]
+							saveuserdb()
+							userdblock.release()
 							del usersloggedin[hostname]
 							irc.notice(nick, "Hostname successfully deleted! You have been logged out as well")
+						else:
+							handledualcmd(cmd, parts[4:], (True, nick, nick, irc))
 				elif state == 0:
 					if parts[1] == "001":
 						state = 1
