@@ -137,14 +137,28 @@ def dualcmdsend(stuff, text):
 def handledualcmd(cmd, params, admin, stuff):
 	if cmd == "help":
 		if len(params) == 0:
-			dualcmdsend(stuff, "Help displays help on built-in commands.")
+			dualcmdsend(stuff, "Help displays help for built-in and game commands.")
 			dualcmdsend(stuff, "Built-in commands: help, register, addhm, delhm, play, join, stop")
 			if admin:
 				dualcmdsend(stuff, "Administrator commands: quote, reload")
 			dualcmdsend(stuff, "Games loaded: "+", ".join(games.keys()))
 			return
 		if params[0] in games:
-			return
+			try:
+				x = params[1]
+			except:
+				x = None
+			try:
+				result = games[params[0]].show_help(x)
+			except:
+				dualcmdsend(stuff, "Help could not be retrieved!")
+				return True
+			if result == None:
+				dualcmdsend(stuff, "That game does not have help for that command.")
+				return True
+			for x in result.split("\n"):
+				dualcmdsend(stuff, x)
+			return True
 		if params[0] == "register":
 			dualcmdsend(stuff, "Syntax: register <user> <pass>")
 			dualcmdsend(stuff, "This command registers the user and pass specified and automatically adds the hostmask the command is issued from to the account. Note: Can only be issued via PM.")
@@ -399,7 +413,7 @@ def network_handler(net):
 								irc.notice(nick, "You didn't start this game!")
 								continue
 							try:
-								result = chan.currgame.start()
+								result = chan.currgame.canstart()
 							except:
 								handle_plugin_error(irc, chan, parts[2], usersloggedin)
 								continue
@@ -409,7 +423,7 @@ def network_handler(net):
 								chan.playerlist.append("FunBot")
 								usersloggedin["FunBot"].chanlist.append(parts[2])
 								try:
-									chan.currgame.join(hostname)
+									chan.currgame.join("FunBot")
 								except:
 									handle_plugin_error(irc, chan, parts[2], usersloggedin)
 									continue
@@ -423,6 +437,11 @@ def network_handler(net):
 							irc.privmsg(parts[2], "Players: "+", ".join([host2nick[hn] for hn in chan.playerlist]))
 							irc.privmsg(parts[2], "The game has been started!")
 							chan.playing = 2
+							try:
+								result = chan.currgame.start()
+							except:
+								handle_plugin_error(irc, chan, parts[2], usersloggedin)
+								continue
 						elif cmd == "stop":
 							if chan.playing == 0:
 								irc.notice(nick, "There is no game to stop!")

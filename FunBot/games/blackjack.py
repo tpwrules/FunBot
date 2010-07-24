@@ -25,27 +25,84 @@ import random
 class Blackjack:
 	def __init__(self, irc, options):
 		self.irc = irc
+		self.prefix = irc.getprefix()
 		self.players = []
 		self.started = False
 		self.currplayer = 0
 		self.deck = [1,2,3,4,5,6,7,8,9,10,11,12,13]*4
 		random.shuffle(self.deck)
 	def join(self, hostname):
-		self.players.append([hostname, []])
+		self.players.append([0, hostname])
 		if self.irc.getuserdata(hostname) == None:
 			self.irc.setuserdata(hostname, [0])
-	def start(self):
+	def canstart(self):
 		if len(self.players) == 1:
-			self.started = True
 			return 1
-		elif len(self.players) == 0:
-			return "You need at least one player!"
-		self.started = True
 		return 0
+	def start(self):
+		self.started = True
+		for x in self.players:
+			t = self.deck.pop()
+			t += self.deck.pop()
+			if x[1] != "FunBot":
+				self.irc.notice(self.irc.getnick(x[1]), "Your total: "+str(t))
+			x[0] = t
+		self.askplayer()
 	def stop(self):
 		pass
+	def askplayer(self):
+		player = self.players[self.currplayer]
+		nick = self.irc.getnick(player[1])
+		if player[1] == "FunBot":
+			return self.handleai()
+		else:
+			self.irc.send(nick+": "+self.prefix+"hit or "+self.prefix+"stay ?")
+	def handleai(self):
+		total = self.players[self.currplayer][0]
+		while total < 18:
+			self.irc.send("I will hit.")
+			total += self.deck.pop()
+			if total > 21:
+				self.irc.send("I have busted.")
+				break
+		if total < 22:
+			self.irc.send("I will stay.")
+		self.players[self.currplayer][0] = total
+		self.currplayer += 1
+		if self.currplayer == len(self.players):
+			self.handlewin()
+			return True
+	def handlewin(self):
+		players = []
+		for x in self.players[:]:
+			if x[0] < 22:
+				players.append(x)
+		players.sort()
+		self.irc.send(self.irc.getnick(players[0][1])+" has won with "+str(players[0][0])+" cards!")
+		for x in self.players:
+			userdata = self.irc.getuserdata(x[1])
+			self.irc.setuserdata(x[1], [userdata[0]+1])
+		return True
 	def handlecmd(self, cmd, params, playing, hostname, nick):
-		self.irc.send("yaaay! Hi "+nick+"! You are playing: "+str(playing))
+		if self.started == False or playing == False:
+			return
+		if self.players[self.currplayer][1] != hostname:
+			irc.notice(nick, "It's not your turn!")
+			return
+		if cmd == "hit":
+			self.players[self.currplayer][0] += self.deck.pop()
+			self.irc.notice(nick, "Your total: "+str(self.players[self.currplayer][0]))
+			if self.players[self.currplayer][0] > 21:
+				self.irc.send(nick+": You have busted!")
+				self.currplayer += 1
+				if self.currplayer == len(self.players):
+					return self.handlewin()
+			return self.askplayer()
+		elif cmd == "stay":
+			self.currplayer += 1
+			if self.currplayer == len(self.players):
+				return self.handlewin()
+			return self.askplayer()
 		
 def start(irc, options):
 	return Blackjack(irc, options)
@@ -54,4 +111,12 @@ def show_stats(stats):
 	return "Number of games played: "+str(stats[0])
 	
 def show_help(cmd):
-	return False
+	if cmd == None:
+		return "This is a standard blackjack game, where the goal is to get to 21 without going over.\n\
+			Commands: hit, stay"
+	if cmd == "hit":
+		return "Syntax: hit\n\
+			This command will make you draw a card from the deck when it's your turn."
+	if cmd == "stay":
+		return "Syntax: stay\n\
+			This command will go to the next player."
