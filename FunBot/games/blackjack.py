@@ -78,7 +78,10 @@ class Blackjack:
 			if x[0] < 22:
 				players.append(x)
 		players.sort()
-		self.irc.send(self.irc.getnick(players[0][1])+" has won with "+str(players[0][0])+" cards!")
+		if len(players) == 0:
+			self.irc.send("Aww! Nobody has won :(")
+		else:
+			self.irc.send(self.irc.getnick(players[0][1])+" has won with a total of "+str(players[0][0])+" points!")
 		for x in self.players:
 			userdata = self.irc.getuserdata(x[1])
 			self.irc.setuserdata(x[1], [userdata[0]+1])
