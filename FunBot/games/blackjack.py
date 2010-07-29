@@ -87,7 +87,7 @@ class Blackjack:
 		if self.started == False or playing == False:
 			return
 		if self.players[self.currplayer][1] != hostname:
-			irc.notice(nick, "It's not your turn!")
+			self.irc.notice(nick, "It's not your turn!")
 			return
 		if cmd == "hit":
 			self.players[self.currplayer][0] += self.deck.pop()
