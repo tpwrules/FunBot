@@ -42,6 +42,8 @@ class GoFish:
 		self.players.append(user)
 		self.hands.append([])
 		self.pairs.append([])
+	def canstart(self):
+		return 0
 	def start(self):
 		self.numplayers = len(self.players)
 		numcards = 7
@@ -95,7 +97,7 @@ class GoFish:
 			else:
 				name += "s"
 		return name
-	def handlecmd(self, cmd, args, user, nick):
+	def handlecmd(self, cmd, args, playing, user, nick):
 		cmd = cmd.lower()
 		if self.players[self.currplayer] != user:
 			self.irc.notice(nick, "Error! It's not your turn!")
