@@ -35,6 +35,9 @@ import copy
 
 class Container: #a boring class intended for storing whatever we need
 	pass
+	
+class KillYourselfException:
+	pass
 
 def log(x):
 	global logfile
@@ -49,9 +52,9 @@ class NetworkConnection:
 		self._name = net_name
 		self._lock = threading.Lock()
 		self._thread = threading.Thread(target=self._handlequeue)
-		self._running = True
 		self._queue = []
 		self._st = sleeptime/100.0
+		self._running = True
 		self._thread.start()
 	def quote(self, data):
 		self._lock.acquire()
@@ -128,8 +131,7 @@ def connect(network):
 	if not config_parser.has_section(network):
 		log("[WARNING] No such network section, not connecting")
 		return
-	networks[network] = Container()
-	n = networks[network]
+	n = Container()
 	n.prefix = global_config.prefix if not config_parser.has_option(network, "prefix") else config_parser.get(network, "prefix")
 	if not config_parser.has_option(network, "nick"):
 		log("[WARNING] No nick specified, not connecting")
@@ -154,8 +156,11 @@ def connect(network):
 		return
 	n.conn = NetworkConnection(n.s, network, msgwait)
 	log("[STATUS] Spawning network thread")
+	n.running = True
+	networks[network] = n
 	n.thread = threading.Thread(target=network_handler, args=(n,))
 	n.thread.start()
+	return True
 			
 def saveuserdb():
 	global userdb
@@ -227,6 +232,9 @@ def handledualcmd(cmd, params, admin, user, stuff):
 			elif params[0] == "reload":
 				dualcmdsend(stuff, "Syntax: reload <game>")
 				dualcmdsend(stuff, "Reloads the specified game. This command can only be issued via PM.")
+			elif params[0] == "disconnect":
+				dualcmdsend(stuff, "Syntax: [t]disconnect <network> [quitmsg]")
+				dualcmdsend(stuff, "Disconnects from network and sends quitmsg. If the command is prefixed with t, it does a 'temporary' disconnect and does not record the disconnect in the config file.")
 	elif cmd == "stats":
 		try:
 			game = params[0]
@@ -255,6 +263,29 @@ def handledualcmd(cmd, params, admin, user, stuff):
 	elif admin:
 		if cmd == "quote":
 			stuff[3].quote(" ".join(params))
+		elif cmd == "disconnect" or cmd == "tdisconnect":
+			if len(params) < 1:
+				dualcmdsend(stuff, "You must specify a network to disconnect from")
+				return True
+			if params[0] not in networks:
+				dualcmdsend(stuff, "You aren't connected to that network")
+				return True
+			global_config.networks.remove(params[0])
+			if cmd == "disconnect":
+				config_parser.set("config", "networks", ",".join(global_config.networks))
+				config_parser.write(open(config_name, "w"))
+			networks[params[0]].running = False
+			try:
+				networks[params[0]].thread.join(5.0)
+				if networks[params[0]].thread.isAlive():
+					dualcmdsend(stuff, "The network thread did not die in time")
+					return True
+			except:
+				networks[params[0]].conn._s.send("QUIT :"+" ".join(params[1:])+"\r\n")
+				del networks[params[0]]
+				raise KillYourselfException
+			networks[params[0]].conn._s.send("QUIT :"+" ".join(params[1:])+"\r\n")
+			del networks[params[0]]
 		else:
 			return False
 	else:
@@ -279,7 +310,7 @@ def network_handler(net):
 	irc.quote("USER "+net.nick+" something nothing :FunBot 2.0")
 	old = ""
 	try:
-		while True:
+		while net.running:
 			data = old+s.recv(1024)
 			data = data.replace("\n", "").split("\r")
 			old = data[-1]
@@ -559,8 +590,11 @@ def network_handler(net):
 							name2chan[x] = chan
 							chan2name[chan] = x
 							irc.quote("JOIN "+chan+kw)
+	except KillYourselfException:
+		log("[STATUS] Killing myself")
 	except:
 		handle_exception()
+	irc._running = False
 	
 networks = {}
 
@@ -646,7 +680,8 @@ for game in gamelist:
 log("[STATUS] FunBot successfully started up")
 
 for network in global_config.networks:
-	connect(network)
+	if connect(network) != True:
+		pass
 	
 try:
 	while True:
@@ -656,4 +691,7 @@ except KeyboardInterrupt:
 	userdblock.acquire()
 	saveuserdb()
 	userdblock.release()
+	l = logfile
+	logfile = None
+	l.close()
 	os._exit(1)
