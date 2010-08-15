@@ -122,6 +122,40 @@ def handle_plugin_error(irc, chandata, channame, loggedin):
 	for x in chandata.playerlist:
 		loggedin[x].chanlist.remove(channame)
 	chandata.playerlist = []
+	
+def connect(network):
+	log("[STATUS] Parsing "+network)
+	if not config_parser.has_section(network):
+		log("[WARNING] No such network section, not connecting")
+		return
+	networks[network] = Container()
+	n = networks[network]
+	n.prefix = global_config.prefix if not config_parser.has_option(network, "prefix") else config_parser.get(network, "prefix")
+	if not config_parser.has_option(network, "nick"):
+		log("[WARNING] No nick specified, not connecting")
+		return
+	n.nick = config_parser.get(network, "nick")
+	if not config_parser.has_option(network, "server"):
+		log("[WARNING] No server specified, not connecting")
+		return
+	n.serverpass = None if not config_parser.has_option(network, "pass") else config_parser.get(network, "pass")
+	n.server = config_parser.get(network, "server")
+	n.port = 6667 if not config_parser.has_option(network, "port") else config_parser.get(network, "port")
+	if not config_parser.has_option(network, "channels"):
+		n.channels = None
+	else:
+		n.channels = config_parser.get(network, "channels").split(",")
+	msgwait = 50 if not config_parser.has_option(network, "msgwait") else config_parser.getint(network, "msgwait")
+	n.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	try:
+		n.s.connect((n.server, n.port))
+	except:
+		log("[WARNING] Could not create socket")
+		return
+	n.conn = NetworkConnection(n.s, network, msgwait)
+	log("[STATUS] Spawning network thread")
+	n.thread = threading.Thread(target=network_handler, args=(n,))
+	n.thread.start()
 			
 def saveuserdb():
 	global userdb
@@ -474,7 +508,7 @@ def network_handler(net):
 							if chan.playing == 0:
 								irc.notice(nick, "There is no game to stop!")
 								continue
-							if chan.startplayer != hostname:
+							if chan.startplayer != hostname and admin == False:
 								irc.notice(nick, "You didn't start this game!")
 								continue
 							try:
@@ -612,38 +646,7 @@ for game in gamelist:
 log("[STATUS] FunBot successfully started up")
 
 for network in global_config.networks:
-	log("[STATUS] Parsing "+network)
-	if not config_parser.has_section(network):
-		log("[WARNING] No such network section, not connecting")
-		continue
-	networks[network] = Container()
-	n = networks[network]
-	n.prefix = global_config.prefix if not config_parser.has_option(network, "prefix") else config_parser.get(network, "prefix")
-	if not config_parser.has_option(network, "nick"):
-		log("[WARNING] No nick specified, not connecting")
-		continue
-	n.nick = config_parser.get(network, "nick")
-	if not config_parser.has_option(network, "server"):
-		log("[WARNING] No server specified, not connecting")
-		continue
-	n.serverpass = None if not config_parser.has_option(network, "pass") else config_parser.get(network, "pass")
-	n.server = config_parser.get(network, "server")
-	n.port = 6667 if not config_parser.has_option(network, "port") else config_parser.get(network, "port")
-	if not config_parser.has_option(network, "channels"):
-		n.channels = None
-	else:
-		n.channels = config_parser.get(network, "channels").split(",")
-	msgwait = 50 if not config_parser.has_option(network, "msgwait") else config_parser.getint(network, "msgwait")
-	n.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	try:
-		n.s.connect((n.server, n.port))
-	except:
-		log("[WARNING] Could not create socket")
-		continue
-	n.conn = NetworkConnection(n.s, network, msgwait)
-	log("[STATUS] Spawning network thread")
-	n.thread = threading.Thread(target=network_handler, args=(n,))
-	n.thread.start()
+	connect(network)
 	
 try:
 	while True:
