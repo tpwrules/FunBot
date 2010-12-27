@@ -79,16 +79,16 @@ class GoFish:
 			else:
 				break
 		self.currplayer = player
-		nick = self.players[player]
+		nick = self.irc.getnick(self.players[player])
 		self.irc.send(nick+", your turn! !ask somebody for cards!")
 		self.irc.send(nick+"'s pairs: "+", ".join([cardletters[card] for card in self.pairs[player]]))
-		self.irc.notice(self.irc.getnick(self.players[player]), "Cards: "+", ".join([cardletters[card] for card in self.hands[player]]))
+		self.irc.notice(nick, "Cards: "+", ".join([cardletters[card] for card in self.hands[player]]))
 	def handlewin(self):
 		self.irc.send("Everybody is out of cards!")
 		pairlens = [(len(self.pairs[x]),x) for x in xrange(len(self.pairs))]
 		pairlens.sort()
 		pairlens.reverse()
-		self.irc.send(self.players[pairlens[0][1]]+" is the winner with "+str(pairlens[0][0]) + " pairs! Congratulations!")
+		self.irc.send(self.irc.getnick(self.players[pairlens[0][1]])+" is the winner with "+str(pairlens[0][0]) + " pairs! Congratulations!")
 	def card2str(self, card, plural=False):
 		name = cardstrs[card]
 		if plural == True:
@@ -106,7 +106,7 @@ class GoFish:
 			if len(args) < 2:
 				self.irc.notice(nick, "Not enough parameters! !ask <player> <card>")
 				return
-			askee = args[0]
+			askee = self.irc.getnick(args[0])
 			card = args[1].upper()
 			try:
 				card = int(card)
@@ -116,17 +116,17 @@ class GoFish:
 				except:
 					self.irc.notice(nick, "Invalid card!")
 					return
-			if askee not in self.players:
+			if args[0] not in self.players:
 				self.irc.notice(nick, "No such player!")
 				return
-			if askee == user:
+			if askee == nick:
 				self.irc.notice(nick, "You can't ask yourself!")
 				return
 			currhand = self.hands[self.currplayer]
 			if card not in currhand:
 				self.irc.notice(nick, "You don't have any of that card!")
 				return
-			askeenum = self.players.index(askee)
+			askeenum = self.players.index(args[0])
 			numcards = self.hands[askeenum].count(card)
 			if len(self.hands[askeenum]) == 0:
 				self.irc.send(askee+" has no cards!")
