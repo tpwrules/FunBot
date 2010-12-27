@@ -32,12 +32,16 @@ import time
 import threading
 import os
 import copy
+import hashlib
 
 class Container: #a boring class intended for storing whatever we need
 	pass
 	
 class KillYourselfException:
 	pass
+	
+def passhash(value):
+	return hashlib.sha1(value).hexdigest()
 
 def log(x):
 	global logfile
@@ -153,6 +157,7 @@ def connect(network):
 		n.s.connect((n.server, n.port))
 	except:
 		log("[WARNING] Could not create socket")
+		handle_exception()
 		return
 	n.conn = NetworkConnection(n.s, network, msgwait)
 	log("[STATUS] Spawning network thread")
@@ -360,7 +365,7 @@ def network_handler(net):
 						if cmd == "register":
 							try:
 								username = parts[4]
-								password = parts[5]
+								password = passhash(parts[5])
 							except:
 								irc.notice(nick, "Error! Not enough parameters! Syntax: register <user> <pass>")
 								continue
@@ -384,7 +389,7 @@ def network_handler(net):
 						elif cmd == "addhm":
 							try:
 								username = parts[4]
-								password = parts[5]
+								password = passhash(parts[5])
 							except:
 								irc.notice(nick, "Error! Not enough parameters! Syntax: addhm <user> <pass>")
 								continue
@@ -392,6 +397,14 @@ def network_handler(net):
 								irc.notice(nick, "Error! This hostname is already being used with another account!")
 								continue
 							userdblock.acquire()
+							if username not in userdb[0]:
+								irc.notice(nick, "Error! Incorrect username or password!")
+								userdblock.release()
+								continue
+							if userdb[0][username][0] != password:
+								irc.notice(nick, "Error! Incorrect username or password!")
+								userdblock.release()
+								continue
 							userdb[1][netname+hostname] = username
 							saveuserdb()
 							userdblock.release()
@@ -399,7 +412,7 @@ def network_handler(net):
 						elif cmd == "delhm":
 							try:
 								username = parts[4]
-								password = parts[5]
+								password = passhash(parts[5])
 							except:
 								irc.notice(nick, "Error! Not enough parameters! Syntax: delhm <user> <pass>")
 								continue
@@ -407,6 +420,14 @@ def network_handler(net):
 								irc.notice(nick, "Because deleting the current hostmask will automatically log you out, you need to finish your games!")
 								continue
 							userdblock.acquire()
+							if username not in userdb[0]:
+								irc.notice(nick, "Error! Incorrect username or password!")
+								userdblock.release()
+								continue
+							if userdb[0][username][0] != password:
+								irc.notice(nick, "Error! Incorrect username or password!")
+								userdblock.release()
+								continue
 							del userdb[1][netname+hostname]
 							saveuserdb()
 							userdblock.release()
