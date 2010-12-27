@@ -6,14 +6,14 @@ Want to write your own FunBot game? You've come to the right place! FunBot games
 Plugin Limitations
 __________________
 
-Because of the way FunBot works, plugins have their limits. First, because FunBot is not multithreaded, you can't take too long in the plugin routines  because it will make other games wait and FunBot will not be responsive. Second, exceptions aren't handled very gracefully. If your plugin generates an exception, the game will automatically halt, and FunBot might be forced to quit entirely.
+Because of the way FunBot works, plugins have their limits. First, because FunBot is not multithreaded, you can't take too long in the plugin routines because it will make other games wait and FunBot will not be responsive. Also, if the delay is long enough, FunBot could disconnect from IRC because it can't handle server messages. Second, exceptions aren't handled very gracefully. If your plugin generates an uncaught exception, the game will automatically halt, and FunBot might be forced to quit entirely.
 
 The Way Plugins Work
 ____________________
 
 As stated earlier, plugins are standard python modules. Plugins must have a few global variables which tells FunBot about the contents of the plugin, some initialization routines, and a class that represents an instance of the game.
 
-Plugins are allowed to store data about users, such as score and other data, whatever the plugin wants. This data is stored by user and game.
+Plugins are allowed to store data about users, such as score and other data, whatever the plugin wants. Each game can store data associated with a certain user.
 
 Plugin Global Variables
 _______________________
@@ -23,49 +23,51 @@ This is a list of global variables required in a plugin for it to be properly ha
 __gamename__
 This variable contains the name of the game. It cannot have any spaces.
 
-__helptext__
-This is the data displayed when !help <game> is issued. Lines are separated by \n
-
-__players__
-This is an integer containing the minimum number of players required to play the game.
-
 Plugin Functions
 ________________
 
-These functions are used to do certain things to initialize the plugin and stuff. These functions are required. If these generate exceptions, the plugin be stopped.
+These functions are called to initialize the plugin or handle certain commands. These functions are required to be defined. If these generate uncaught exceptions or do not exist, the plugin will be stopped.
 
 def start(irc, options)
-This function is supposed to create a class representing a game instance and return the instance. The irc parameter is a class that manages talking to IRC and storing/retrieving the bot's data. The options parameter is an array containing the data after the !play <game> command.
+This function is supposed to create a class representing a game instance and return the instance. The irc parameter is a class that manages talking to IRC and communicating with the bot. The options parameter is an array containing the parameters after the !start <game> command.
 
-def disp_stats(irc, userdata)
-This function is called to display the stats for a specific user. The irc parameter can be used for sending the data and the userdata parameter is the user data to be parsed.
+def show_stats(stats):
+This function is called to display the stats for a specific user. The stats parameter contains the user data to display. The function must return a string that will be displayed. Lines can be separated by \n. Even if the game does not store user data, it is recommended to have this function defined and have it return an empty string.
+
+def show_help(cmd):
+This function is called to display help about the game. If cmd == None, the function should return help about the game. Otherwise, the function should return help about the command in cmd. If the game doesn't have help for the specified topic, the game should return None.
 
 Plugin Class
 ____________
 
-This class is the one instantiated and returned by the start method. It is an instance of the game and has various functions that handle game events.
+This class is the one instantiated and returned by the start method. It is an instance of the game and has various functions that are called to handle game events.
 
-def join(user)
-This is called when the user in the user parameter is joining the game.
+def join(hostname)
+This is called when the user with the hostname in the hostname parameter is joining the game.
+NOTE: If AI is supported and the bot joins the game, the hostname will be "FunBot".
+
+def canstart()
+This function is called to test whether the game can be started. If the game can be started, return 0. If the game can be started and the bot should join the game, return 1. Otherwise, return a string containing the reason that the game can't be started. This will be sent to the person who issued !play.
+If the bot should join the game, join will be called with "FunBot" as the hostname.
 
 def start()
-This is called when gameplay is to be started, ie. this function is called when the !start command is called.
+This function is called when the game should start.
 
 def stop()
-This is called when gameplay needs to forcefully be ended, ie. this is called when the !stop command is issued.
+This is called when gameplay needs to forcefully be ended, ie. this is called when the !stop command is issued. After this function is called, the game instance will be destroyed.
 
-def handlecmd(cmd, args, user, nick)
-This function is responsible for handling all commands that are not global. The cmd argument is the command, the args argument is an array of the space-separated arguments that came after the command, user is the user that called the commmand, nick is the nick that called the command.
+def handlecmd(cmd, args, playing, hostname, nick)
+This function is responsible for handling all commands that are not global. The cmd argument is the command, the args argument is an array of the space-separated arguments that came after the command, playing is True when the issuer of the command is playing the game, False otherwise, hostname is the user that called the command, nick is the nick that called the command. If this function returns True, this indicates that the game has finished and should be cleaned up by the bot.
 
 The Irc Class
 _____________
 
-This class is passed to functions as a portal to the channel/user that the plugin should be talking to.
-
-Important Variables (Others shouldn't be touched)
-_dest: contains the channel/nick that the class is pointing to currently
+This class is passed to the game as a way to interact with the bot's core and IRC.
 
 Functions
+
+quote(data)
+Sends the raw data to the IRC server, appending a CR+LF. Please use sparingly, and be careful, as damage can be done.
 
 send(data)
 Sends the data in the data parameter to the current destination.
@@ -73,17 +75,17 @@ Sends the data in the data parameter to the current destination.
 notice(nick, data)
 Sends a notice containing data to nick.
 
-quote(data)
-Sends the raw data to the IRC server, appending a CR+LF. Please use sparingly and be careful, as damage can be done.
+getuserdata(hostname)
+Returns the user data for hostname.
 
-getuserdata(user)
-Returns the user data for user.
+setuserdata(hostname, data)
+Sets the userdata contained in hostname to data.
 
-setuserdata(user, data)
-Sets the userdata contained in user to data.
+getprefix()
+Returns the prefix of the current channel. This can be used to display commands using the proper prefix.
 
-getnick(user)
-Gets the current nick that user is using.
+getnick(hostname)
+Gets the current nick that hostname is using.
 
 End
 ___

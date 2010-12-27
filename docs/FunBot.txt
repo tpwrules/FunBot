@@ -10,15 +10,16 @@ Table of Contents
 1.3 FunBot.ini
 1.3.1 Layout
 1.3.2 config values
-1.3.3 channel section values
+1.3.3 network section values
+1.3.4 channel section values
 1.4 Users database
 
 2. Adding FunBot plugins
 
 3. FunBot commands
 3.1 User commands
-3.2 God commands
-3.3 Game info commands
+3.2 Admin commands
+3.3 Global commands
 3.4 Gameplay commands
 
 [1] Setting up FunBot
@@ -31,41 +32,53 @@ You must have Python 2.6 installed on your system.
 
 [1.2] File locations
 --------------------
-The FunBot files can go in any directory, as long as they are together. FunBot.ini and Funbot.py must be in the same directory, along with games. The games directory contains all the FunBot game plugins as well as an __init__.py.
+The FunBot files can go in any directory, as long as they are together. FunBot.ini and Funbot.py must be in the same directory, along with the games folder. The games directory contains all the FunBot game plugins as well as an __init__.py.
 
 [1.3] FunBot.ini
 ----------------
-FunBot.ini is a standard .ini that keeps track of FunBot settings and the channels FunBot is in.
+FunBot.ini is a standard .ini that keeps track of FunBot settings and the channels and networks FunBot is in.
 
 [1.3.1] Layout
 --------------
-FunBot.ini must contain at least one section: the config section. This contains channel lists, the nick, server info, and other stuff.
+FunBot.ini must contain at least one section: the config section. This contains network lists, file locations, games, and other stuff.
 
 [1.3.2] config values
 ---------------------
-channels: Comma-separated list of channel sections that FunBot needs to read from.
-
-nick: FunBot's current nick.
+userfile: The location of the user database file.
 
 prefix: FunBot's current global prefix character.
 
-server: IRC server to connect to, only one at a time is supported.
+admins: A comma-separated list of admins.
 
-port: IRC server port.
+games: Comma-separated list of games to load on startup.
 
-pass (optional): Server password
+logfile (optional): Location of the log file. If this option doesn't exist, FunBot will not log to a logfile.
 
-userfile: User database file.
+networks: Comma-separated list of network sections for FunBot to parse.
 
-godusers: Comma-separated list of usernames that are 'god' and can access admin commands.
+[1.3.3] network section values
+------------------------------
+server: Server to connect to.
 
-[1.3.3] channel section values
+port (optional, default: 6667): Port to connect to.
+
+pass (optional): Password to connect to the server.
+
+nick: Nickname to use on this network.
+
+prefix (optional): Prefix to use for this network, if not specified, uses the global prefix instead.
+
+channels: Comma-separated list of channel sections to parse.
+
+msgwait (optional, default: 50): Number of hundredths of a second to wait between sending messages. Lower values mean FunBot sends messages faster, but it can flood off the server easier.
+
+[1.3.4] channel section values
 ------------------------------
 channel: The name of the channel to connect to.
 
 key (optional): The channel keyword
 
-prefix (optional): The prefix for this channel only. If not specified, the global prefix is used.
+prefix (optional): The prefix for this channel only. If not specified, the network prefix is used.
 
 games (optional): Comma-separated list of games allowed in the channel. If omitted, all games are allowed.
 
@@ -75,13 +88,11 @@ This file contains a pickled representation of the user database. The bot will n
 
 [2] Adding FunBot Plugins
 -------------------------
-Note: Some knowledge of Python is expected here.
-
-Step 1. Quit FunBot
+Step 1. Quit FunBot.
 Step 2. Copy the game plugin into the games directory.
-Step 3. Open up FunBot.py in your favorite text editor.
-Step 4. Add your game under the game imports header. This should be in the form of 'from games import <game file minus .py>'
-Step 5. Add a new entry to the plugin dictionary, with the key being the gamename and the value being the module. Entries should be in the form of '<game module>.__gamename__:<game module>'. Entries are separated by a comma.
+Step 3. Open up FunBot.ini in your favorite text editor.
+Step 4. In the config section, add the name of the game to the end of the games list. (NOTE: the name is the name of the file minus the .py extension. The file name can be different from the game name.)
+Step 5. Save FunBot.ini.
 Step 6. Relaunch FunBot.
 
 [3] FunBot Commands
@@ -90,40 +101,38 @@ This section details the operation of FunBot. FunBot's channel command prefix is
 
 [3.1] User Commands
 -------------------
-These commands are used for managing users. All of them should be sent in PM, with no channel command prefix.
+These commands are used for managing users. All of them should be sent in PM, with no channel command prefix. When a user talks in a channel the bot is in or sends it a PM, the user is automatically logged in if they have their hostmask registered with their account.
 
-register <user> <pass>: Register user 'user' with password 'pass'.
+register <user> <pass>: Register user 'user' with password 'pass'. Automatically adds the calling user's hostmask.
 
-login <user> <pass>: Log in as user 'user' and use password 'pass'.
+addhm <user> <pass>: Adds the hostmask the command is issued from to user's hostmask list.
 
-logout: Log out.
+delhm <user> <pass>: Removes the hostmask the command is issued from from user's hostmask list.
 
-[3.2] God Commands
-------------------
-These commands can only be used by the 'gods'. If a non-god user tries to access them, they act as if nothing happened. These should be sent in PM, with no channel command prefix.
-
+[3.2] Admin Commands
+--------------------
 quote: Send all the data after the quote command raw to the server.
 
-reload <game>: Reload the game's plugin.
+reload <game>: Reload the plugin for game. Can only be issued via PM.
 
-[3.3] Game Info Commands
-------------------------
+[t]disconnect <network> [quitmsg]: Disconnects from network and sends quitmsg. If the command is prefixed with t, it does a 'temporary' disconnect and does not record the disconnect in the config file.
+
+[3.3] Global commands
+---------------------
 These commands can be sent either in PM or on the channel.
 
-help <game>: Shows the help text for game.
+help [command|game] [command]: If called with no parameters, displays the available commands and the games currently loaded. If the first parameter is a bot command, displays help for that command. If the first parameter is a game, it displays help for that game and command.
 
 stats <gamename> [user]: Shows the stats for gamename for the user issuing the command. If user is specified, shows the stats for that user instead of the one issuing the command.
-
-list: Lists all games currently loaded in FunBot.
 
 [3.4] Gameplay Commands
 -----------------------
 These commands are used to administer gameplay. You must be logged in to use them.
 
-play <gamename>: Starts the join process for gamename.
+start <gamename>: Starts the join process for gamename. Only logged in users may start a game.
 
-stop: Stops the current game.
+play: Starts play for the current game. The user that issued start must issue play.
 
-start: Starts gameplay after everybody has joined.
+stop: Stops the current game. Only the user who issued start can stop the game.
 
-join: Join the current game.
+join: Join the current game. Only logged in users may join.
