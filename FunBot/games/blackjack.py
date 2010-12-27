@@ -29,7 +29,7 @@ class Blackjack:
 		self.players = []
 		self.started = False
 		self.currplayer = 0
-		self.deck = [1,2,3,4,5,6,7,8,9,10,11,12,13]*4
+		self.deck = [1,2,3,4,5,6,7,8,9,10,10,10,10]*4
 		random.shuffle(self.deck)
 	def join(self, hostname):
 		self.players.append([0, hostname])
@@ -59,7 +59,7 @@ class Blackjack:
 			self.irc.send(nick+": "+self.prefix+"hit or "+self.prefix+"stay ?")
 	def handleai(self):
 		total = self.players[self.currplayer][0]
-		while total < 18:
+		while total < 16:
 			self.irc.send("I will hit.")
 			total += self.deck.pop()
 			if total > 21:
