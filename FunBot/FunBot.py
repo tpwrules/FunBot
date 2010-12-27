@@ -184,7 +184,7 @@ def handledualcmd(cmd, params, admin, user, stuff):
 			dualcmdsend(stuff, "Help displays help for built-in and game commands.")
 			dualcmdsend(stuff, "Built-in commands: help, register, addhm, delhm, play, join, stop, stats")
 			if admin:
-				dualcmdsend(stuff, "Administrator commands: quote, reload")
+				dualcmdsend(stuff, "Administrator commands: quote, reload, disconnect")
 			dualcmdsend(stuff, "Games loaded: "+", ".join(games.keys()))
 			return
 		if params[0] in games:
