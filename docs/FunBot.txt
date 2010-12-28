@@ -117,6 +117,8 @@ reload <game>: Reload the plugin for game. Can only be issued via PM.
 
 [t]disconnect <network> [quitmsg]: Disconnects from network and sends quitmsg. If the command is prefixed with t, it does a 'temporary' disconnect and does not record the disconnect in the config file.
 
+[t]connect <network>: Connects to network. If the command is prefixed with t, performs a 'temporary' connect and does not record the change in teh config file.
+
 [3.3] Global commands
 ---------------------
 These commands can be sent either in PM or on the channel.

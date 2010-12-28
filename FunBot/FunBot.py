@@ -184,7 +184,7 @@ def handledualcmd(cmd, params, admin, user, stuff):
 			dualcmdsend(stuff, "Help displays help for built-in and game commands.")
 			dualcmdsend(stuff, "Built-in commands: help, register, addhm, delhm, play, join, stop, stats")
 			if admin:
-				dualcmdsend(stuff, "Administrator commands: quote, reload, disconnect")
+				dualcmdsend(stuff, "Administrator commands: quote, reload, disconnect, connect")
 			dualcmdsend(stuff, "Games loaded: "+", ".join(games.keys()))
 			return
 		if params[0] in games:
@@ -240,6 +240,9 @@ def handledualcmd(cmd, params, admin, user, stuff):
 			elif params[0] == "disconnect":
 				dualcmdsend(stuff, "Syntax: [t]disconnect <network> [quitmsg]")
 				dualcmdsend(stuff, "Disconnects from network and sends quitmsg. If the command is prefixed with t, it does a 'temporary' disconnect and does not record the disconnect in the config file.")
+			elif params[0] == "connect":
+				dualcmdsend(stuff, "Syntax: [t]connect <network>")
+				dualcmdsend(stuff, "Connects to network. If the command is prefixed with t, performs a 'temporary' connect and does not record the change in teh config file.")
 	elif cmd == "stats":
 		try:
 			game = params[0]
@@ -273,24 +276,49 @@ def handledualcmd(cmd, params, admin, user, stuff):
 				dualcmdsend(stuff, "You must specify a network to disconnect from")
 				return True
 			if params[0] not in networks:
-				dualcmdsend(stuff, "You aren't connected to that network")
+				dualcmdsend(stuff, "I'm not connected to that network")
 				return True
 			global_config.networks.remove(params[0])
 			if cmd == "disconnect":
-				config_parser.set("config", "networks", ",".join(global_config.networks))
+				t = config_parser.get("config", "networks").split(",")
+				try:
+					t.remove(params[0])
+				except:
+					pass
+				config_parser.set("config", "networks", ",".join(t))
 				config_parser.write(open(config_name, "w"))
 			networks[params[0]].running = False
+			networks[params[0]].conn._s.send("QUIT :"+" ".join(params[1:])+"\r\n")
 			try:
 				networks[params[0]].thread.join(5.0)
 				if networks[params[0]].thread.isAlive():
 					dualcmdsend(stuff, "The network thread did not die in time")
+					del networks[params[0]]
 					return True
 			except:
 				networks[params[0]].conn._s.send("QUIT :"+" ".join(params[1:])+"\r\n")
 				del networks[params[0]]
 				raise KillYourselfException
-			networks[params[0]].conn._s.send("QUIT :"+" ".join(params[1:])+"\r\n")
 			del networks[params[0]]
+		elif cmd == "connect" or cmd == "tconnect":
+			if len(params) < 1:
+				dualcmdsend(stuff, "You must specify a network to connect to")
+				return True
+			if params[0] in networks:
+				dualcmdsend(stuff, "I'm already connected to that network")
+				return True
+			if not config_parser.has_section(params[0]):
+				dualcmdsend(stuff, "That network doesn't exist in my config file")
+				return True
+			global_config.networks.append(params[0])
+			if cmd == "connect":
+				t = config_parser.get("config", "networks").split(",")
+				if params[0] not in t:
+					t.append(params[0])
+				config_parser.set("config", "networks", ",".join(t))
+				config_parser.write(open(config_name, "w"))
+			dualcmdsend(stuff, "Beginning connection process...")
+			connect(params[0])
 		else:
 			return False
 	else:
@@ -320,6 +348,8 @@ def network_handler(net):
 			data = data.replace("\n", "").split("\r")
 			old = data[-1]
 			for line in data[:-1]:
+				if not net.running:
+					break
 				log("[STATUS] "+line)
 				parts = line.split(" ")
 				if parts[0] == "PING":
@@ -615,6 +645,7 @@ def network_handler(net):
 		log("[STATUS] Killing myself")
 	except:
 		handle_exception()
+	log("[STATUS] Network thread "+irc._name+" shutting down")
 	irc._running = False
 	
 networks = {}
