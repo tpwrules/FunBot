@@ -67,6 +67,8 @@ cfg.set("config", "games", ",".join([game[0][:-3] for game in add_games]))
 print
 print "Now, we need to add networks. If you don't specify any network name or server, I will stop asking you for networks."
 
+net_names = []
+
 while True:
 	net_name = get_param("Network section name")
 	if net_name == "":
@@ -118,6 +120,9 @@ while True:
 	cfg.set(net_name, "channels", ",".join([channel[0] for channel in channels]))
 	if msgwait != "50":
 		cfg.set(net_name, "msgwait", msgwait)
+	net_names.append(net_name)
+	
+cfg.set("config", "networks", ",".join(net_names))
 
 print
 print "Now, I need an admin username and password."
