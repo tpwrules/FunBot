@@ -296,7 +296,6 @@ def handledualcmd(cmd, params, admin, user, stuff):
 					del networks[params[0]]
 					return True
 			except:
-				networks[params[0]].conn._s.send("QUIT :"+" ".join(params[1:])+"\r\n")
 				del networks[params[0]]
 				raise KillYourselfException
 			del networks[params[0]]
