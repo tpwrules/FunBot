@@ -106,7 +106,7 @@ class GoFish:
 			if len(args) < 2:
 				self.irc.notice(nick, "Not enough parameters! !ask <player> <card>")
 				return
-			askee = self.irc.getnick(args[0])
+			askee = args[0]
 			card = args[1].upper()
 			try:
 				card = int(card)
@@ -116,7 +116,13 @@ class GoFish:
 				except:
 					self.irc.notice(nick, "Invalid card!")
 					return
-			if args[0] not in self.players:
+			found = False
+			for x in self.players:
+				if args[0] == self.irc.getnick(x):
+					askeehm = x
+					found = True
+					break
+			if found == False:
 				self.irc.notice(nick, "No such player!")
 				return
 			if askee == nick:
@@ -126,7 +132,7 @@ class GoFish:
 			if card not in currhand:
 				self.irc.notice(nick, "You don't have any of that card!")
 				return
-			askeenum = self.players.index(args[0])
+			askeenum = self.players.index(askeehm)
 			numcards = self.hands[askeenum].count(card)
 			if len(self.hands[askeenum]) == 0:
 				self.irc.send(askee+" has no cards!")
@@ -149,7 +155,7 @@ class GoFish:
 						out += ", so you picked up a "+self.card2str(card)
 					except:
 						pass
-					self.irc.notice(self.irc.getnick(askee), out+"!")
+					self.irc.notice(askee, out+"!")
 			cards = set(currhand)
 			pairs = []
 			for x in cards:
