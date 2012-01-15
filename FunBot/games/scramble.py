@@ -121,5 +121,5 @@ class Scramble:
 def start(irc, options):
 	return Scramble(irc, options)
 	
-def disp_stats(irc, userdata):
-	irc.send("Total words unscrambled: "+str(userdata[0]))
+def show_stats(userdata):
+	return "Total words unscrambled: "+str(userdata[0])
