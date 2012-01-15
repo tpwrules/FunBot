@@ -58,6 +58,8 @@ class Scramble:
 	def join(self, user):
 		if self.irc.getuserdata(user) == None:
 			self.irc.setuserdata(user, [0])
+	def canstart(self):
+		return 0
 	def start(self):
 		self.irc.send("Choosing words, be patient!")
 		chosenwords = []
@@ -82,7 +84,7 @@ class Scramble:
 		self.discovered = [False]*len(self.currword)
 		self.irc.send(str(self.currwordnum+1)+"/"+str(len(self.words))+". Unscramble this: "+"".join(arr))
 		print self.currword, "<-- the word"
-	def handlecmd(self, cmd, args, user, nick):
+	def handlecmd(self, cmd, args, playing, user, nick):
 		if cmd == "w":
 			try:
 				submission = args[0]
@@ -100,7 +102,7 @@ class Scramble:
 			for x in self.discovered:
 				alldiscovered = alldiscovered and x
 			if alldiscovered == True:
-				self.irc.send(user+" got it! The word was "+self.currword)
+				self.irc.send(nick+" got it! The word was "+self.currword)
 				self.irc.setuserdata(user, [self.irc.getuserdata(user)[0]+1])
 				self.currwordnum += 1
 				if self.currwordnum == len(self.words):
