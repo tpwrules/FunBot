@@ -123,12 +123,7 @@ def handle_exception():
 def handle_plugin_error(irc, chandata, channame, loggedin):
 	handle_exception()
 	irc.privmsg(channame, "A plugin error has occurred! The game will have to be ended :(")
-	chandata.currgame = None
-	chandata.playing = 0
-	chandata.startplayer = ""
-	for x in chandata.playerlist:
-		loggedin[x].chanlist.remove(channame)
-	chandata.playerlist = []
+	cleanupgame(chandata)
 	
 def connect(network):
 	log("[STATUS] Parsing "+network)
@@ -167,6 +162,14 @@ def connect(network):
 	n.thread = threading.Thread(target=network_handler, args=(n,))
 	n.thread.start()
 	return True
+	
+def cleanupgame(chandata):
+	chandata.currgame = None
+	chandata.playing = 0
+	chandata.startplayer = ""
+	for x in chandata.playerlist:
+		loggedin[x].chanlist.remove(channame)
+	chandata.playerlist = []
 			
 def saveuserdb():
 	global userdb
@@ -601,12 +604,7 @@ def network_handler(net):
 							except:
 								handle_plugin_error(irc, chan, parts[2], usersloggedin)
 								continue
-							chan.currgame = None
-							chan.playing = 0
-							chan.startplayer = ""
-							for x in chan.playerlist:
-								usersloggedin[x].chanlist.remove(parts[2])
-							chan.playerlist = []
+							cleanupgame(chan)
 							irc.privmsg(parts[2], "The game has been stopped!")
 						elif chan.playing != 0:
 							if not loggedin:
@@ -619,12 +617,7 @@ def network_handler(net):
 								continue
 							if result == True:
 								irc.privmsg(parts[2], "The game has finished!")
-								chan.currgame = None
-								chan.playing = 0
-								chan.startplayer = ""
-								for x in chan.playerlist:
-									usersloggedin[x].chanlist.remove(parts[2])
-								chan.playerlist = []
+								cleanupgame(chan)
 								saveuserdb()
 				elif state == 0:
 					if parts[1] == "001":
