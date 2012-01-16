@@ -79,7 +79,7 @@ class NetworkConnection:
 			self._lock.release()
 			
 class GameIrc:
-	def __init__(self, net, gamename, dest, notice, prefix, host2nick, netname):
+	def __init__(self, net, gamename, dest, notice, prefix, host2nick, netname, tempplayers):
 		self._net = net
 		self._host2nick = host2nick
 		self._gamename = gamename
@@ -87,6 +87,8 @@ class GameIrc:
 		self._notice = notice
 		self._prefix = prefix
 		self._netname = netname
+		self._tempplayers = tempplayers
+		self._tempdata = {}
 	def quote(self, data):
 		self._net.quote(data)
 	def send(self, data):
@@ -97,6 +99,11 @@ class GameIrc:
 	def notice(self, nick, data):
 		self._net.quote("NOTICE "+nick+" :"+data)
 	def getuserdata(self, hostname):
+		if hostname in self._tempplayers:
+			try:
+				return self.tempdata[hostname]
+			except:
+				return None
 		if hostname == "FunBot":
 			try:
 				return userdb[0]["FunBot"][1][self._gamename]
@@ -107,6 +114,9 @@ class GameIrc:
 		except:
 			return None
 	def setuserdata(self, hostname, data):
+		if hostname in self._tempplayers:
+			self._tempdata[hostname] = data
+			return
 		if hostname == "FunBot":
 			userdb[0]["FunBot"][1][self._gamename] = data
 			return
@@ -123,7 +133,7 @@ def handle_exception():
 def handle_plugin_error(irc, chandata, channame, loggedin):
 	handle_exception()
 	irc.privmsg(channame, "A plugin error has occurred! The game will have to be ended :(")
-	cleanupgame(chandata)
+	cleanupgame(chandata, loggedin)
 	
 def connect(network):
 	log("[STATUS] Parsing "+network)
@@ -163,13 +173,25 @@ def connect(network):
 	n.thread.start()
 	return True
 	
-def cleanupgame(chandata):
+def cleanupgame(chandata, loggedin):
 	chandata.currgame = None
 	chandata.playing = 0
 	chandata.startplayer = ""
 	for x in chandata.playerlist:
 		loggedin[x].chanlist.remove(channame)
 	chandata.playerlist = []
+	for x in chandata.tempplayers:
+		del loggedin[x]
+		del host2nick[x]
+	chandata.tempplayers = []
+	
+def create_temp_user(chandata, loggedin, nick, hostname, host2nick):
+	chandata.tempplayers.append(hostname)
+	host2nick[hostname] = nick
+	user = Container()
+	user.username = nick
+	user.chanlist = []
+	loggedin[hostname] = user
 			
 def saveuserdb():
 	global userdb
@@ -372,6 +394,7 @@ def network_handler(net):
 							chancfg.playerlist = []
 							chancfg.startplayer = ""
 							chancfg.playing = 0
+							chancfg.tempplayers = []
 							channels[parts[3]] = chancfg
 						elif parts[1] == "005":
 							for x in parts[3:]:
@@ -404,6 +427,9 @@ def network_handler(net):
 								password = passhash(parts[5])
 							except:
 								irc.notice(nick, "Error! Not enough parameters! Syntax: register <user> <pass>")
+								continue
+							if hostname in chan.tempplayers:
+								irc.notice(nick, "Error! You cannot register while playing a game!")
 								continue
 							if username in userdb[0]:
 								irc.notice(nick, "Error! A user with this name already exists!")
@@ -494,8 +520,8 @@ def network_handler(net):
 							continue
 						if cmd == "start":
 							if not loggedin:
-								irc.notice(nick, "You must be logged in!")
-								continue
+								create_temp_user(chan, usersloggedin, nick, hostname, host2nick)
+								irc.notice(nick, "A temporary account has been created for you. Information will not be saved.")
 							if chan.playing != 0:
 								irc.notice(nick, "A game has already been started!")
 								continue
@@ -511,7 +537,7 @@ def network_handler(net):
 								if game not in chan.allowedgames:
 									irc.notice(nick, "You can't play that game in this channel!")
 									continue
-							gameirc = GameIrc(irc, game, parts[2], False, chan.prefix, host2nick, netname)
+							gameirc = GameIrc(irc, game, parts[2], False, chan.prefix, host2nick, netname, chan.tempplayers)
 							try:
 								options = parts[5:]
 							except:
@@ -533,8 +559,8 @@ def network_handler(net):
 							irc.privmsg(parts[2], "Game is opening! Type "+chan.prefix+"join to join!")
 						elif cmd == "join":
 							if not loggedin:
-								irc.notice(nick, "You must be logged in!")
-								continue
+								create_temp_user(chan, usersloggedin, nick, hostname, host2nick)
+								irc.notice(nick, "A temporary account has been created for you. Information will not be saved.")
 							if chan.playing == 0:
 								irc.notice(nick, "Start a game first!")
 								continue
@@ -604,12 +630,12 @@ def network_handler(net):
 							except:
 								handle_plugin_error(irc, chan, parts[2], usersloggedin)
 								continue
-							cleanupgame(chan)
+							cleanupgame(chan, usersloggedin)
 							irc.privmsg(parts[2], "The game has been stopped!")
 						elif chan.playing != 0:
 							if not loggedin:
-								irc.notice(nick, "You must be logged in!")
-								continue
+								create_temp_user(chan, usersloggedin, nick, hostname, host2nick)
+								irc.notice(nick, "A temporary account has been created for you. Information will not be saved.")
 							try:
 								result = chan.currgame.handlecmd(cmd.lower(), parts[4:], hostname in chan.playerlist, hostname, host2nick[hostname])
 							except:
@@ -617,7 +643,7 @@ def network_handler(net):
 								continue
 							if result == True:
 								irc.privmsg(parts[2], "The game has finished!")
-								cleanupgame(chan)
+								cleanupgame(chan, usersloggedin)
 								saveuserdb()
 				elif state == 0:
 					if parts[1] == "001":
