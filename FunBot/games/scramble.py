@@ -117,6 +117,12 @@ class Scramble:
 				else:
 					wordreveal += "."
 			self.irc.send("Word: "+wordreveal)
+		elif cmd == "s" or cmd == "skip":
+			self.irc.send("Nobody got it :( The word was "+self.currword)
+			self.currwordnum += 1
+			if self.currwordnum == len(self.words):
+				self.irc.send("No more words! Come back next time!")
+				return True
 
 def start(irc, options):
 	return Scramble(irc, options)
