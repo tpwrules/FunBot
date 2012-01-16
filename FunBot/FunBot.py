@@ -77,6 +77,7 @@ class NetworkConnection:
 				continue
 			self._s.send(self._queue.pop())
 			self._lock.release()
+		self._s.close()
 			
 class GameIrc:
 	def __init__(self, net, gamename, dest, notice, prefix, host2nick, netname, tempplayers):
@@ -130,10 +131,10 @@ def handle_exception():
 	for x in traceback.format_exc().split("\n"):
 		log("[TRACEBACK] "+x)
 
-def handle_plugin_error(irc, chandata, channame, loggedin):
+def handle_plugin_error(irc, chandata, channame, loggedin, host2nick):
 	handle_exception()
 	irc.privmsg(channame, "A plugin error has occurred! The game will have to be ended :(")
-	cleanupgame(chandata, loggedin, channame)
+	cleanupgame(chandata, loggedin, channame, host2nick)
 	
 def connect(network):
 	log("[STATUS] Parsing "+network)
@@ -173,7 +174,7 @@ def connect(network):
 	n.thread.start()
 	return True
 	
-def cleanupgame(chandata, loggedin, channame):
+def cleanupgame(chandata, loggedin, channame, host2nick):
 	chandata.currgame = None
 	chandata.playing = 0
 	chandata.startplayer = ""
@@ -545,7 +546,7 @@ def network_handler(net):
 							try:
 								chan.currgame = games[game].start(gameirc, options)
 							except:
-								handle_plugin_error(irc, chan, parts[2], usersloggedin)
+								handle_plugin_error(irc, chan, parts[2], usersloggedin, host2nick)
 								continue
 							chan.startplayer = hostname
 							chan.playerlist.append(hostname)
@@ -553,7 +554,7 @@ def network_handler(net):
 							try:
 								chan.currgame.join(hostname)
 							except:
-								handle_plugin_error(irc, chan, parts[2], usersloggedin)
+								handle_plugin_error(irc, chan, parts[2], usersloggedin, hostwnick)
 								continue
 							chan.playing = 1
 							irc.privmsg(parts[2], "Game is opening! Type "+chan.prefix+"join to join!")
@@ -575,7 +576,7 @@ def network_handler(net):
 							try:
 								chan.currgame.join(hostname)
 							except:
-								handle_plugin_error(irc, chan, parts[2], usersloggedin)
+								handle_plugin_error(irc, chan, parts[2], usersloggedin, host2nick)
 								continue
 							irc.privmsg(parts[2], nick+" has joined the game!")
 						elif cmd == "play":
@@ -591,7 +592,7 @@ def network_handler(net):
 							try:
 								result = chan.currgame.canstart()
 							except:
-								handle_plugin_error(irc, chan, parts[2], usersloggedin)
+								handle_plugin_error(irc, chan, parts[2], usersloggedin, host2nick)
 								continue
 							if result == 0:
 								pass
@@ -601,14 +602,14 @@ def network_handler(net):
 								try:
 									chan.currgame.join("FunBot")
 								except:
-									handle_plugin_error(irc, chan, parts[2], usersloggedin)
+									handle_plugin_error(irc, chan, parts[2], usersloggedin, host2nick)
 									continue
 								irc.privmsg(parts[2], host2nick["FunBot"]+" has joined the game!")
 							else:
 								try:
 									irc.notice(nick, result)
 								except:
-									handle_plugin_error(irc, chan, parts[2], usersloggedin)
+									handle_plugin_error(irc, chan, parts[2], usersloggedin, host2nick)
 								continue
 							irc.privmsg(parts[2], "Players: "+", ".join([host2nick[hn] for hn in chan.playerlist]))
 							irc.privmsg(parts[2], "The game has been started!")
@@ -616,7 +617,7 @@ def network_handler(net):
 							try:
 								result = chan.currgame.start()
 							except:
-								handle_plugin_error(irc, chan, parts[2], usersloggedin)
+								handle_plugin_error(irc, chan, parts[2], usersloggedin, host2nick)
 								continue
 						elif cmd == "stop":
 							if chan.playing == 0:
@@ -628,9 +629,9 @@ def network_handler(net):
 							try:
 								chan.currgame.stop()
 							except:
-								handle_plugin_error(irc, chan, parts[2], usersloggedin)
+								handle_plugin_error(irc, chan, parts[2], usersloggedin, host2nick)
 								continue
-							cleanupgame(chan, usersloggedin, parts[2])
+							cleanupgame(chan, usersloggedin, parts[2], host2nick)
 							irc.privmsg(parts[2], "The game has been stopped!")
 						elif chan.playing != 0:
 							if not loggedin:
@@ -639,11 +640,11 @@ def network_handler(net):
 							try:
 								result = chan.currgame.handlecmd(cmd.lower(), parts[4:], hostname in chan.playerlist, hostname, host2nick[hostname])
 							except:
-								handle_plugin_error(irc, chan, parts[2], usersloggedin)
+								handle_plugin_error(irc, chan, parts[2], usersloggedin, host2nick)
 								continue
 							if result == True:
 								irc.privmsg(parts[2], "The game has finished!")
-								cleanupgame(chan, usersloggedin, parts[2])
+								cleanupgame(chan, usersloggedin, parts[2], host2nick)
 								saveuserdb()
 				elif state == 0:
 					if parts[1] == "001":
