@@ -101,7 +101,7 @@ class GameIrc:
 	def getuserdata(self, hostname):
 		if hostname in self._tempplayers:
 			try:
-				return self.tempdata[hostname]
+				return self._tempdata[hostname]
 			except:
 				return None
 		if hostname == "FunBot":
@@ -133,7 +133,7 @@ def handle_exception():
 def handle_plugin_error(irc, chandata, channame, loggedin):
 	handle_exception()
 	irc.privmsg(channame, "A plugin error has occurred! The game will have to be ended :(")
-	cleanupgame(chandata, loggedin)
+	cleanupgame(chandata, loggedin, channame)
 	
 def connect(network):
 	log("[STATUS] Parsing "+network)
@@ -173,7 +173,7 @@ def connect(network):
 	n.thread.start()
 	return True
 	
-def cleanupgame(chandata, loggedin):
+def cleanupgame(chandata, loggedin, channame):
 	chandata.currgame = None
 	chandata.playing = 0
 	chandata.startplayer = ""
@@ -630,7 +630,7 @@ def network_handler(net):
 							except:
 								handle_plugin_error(irc, chan, parts[2], usersloggedin)
 								continue
-							cleanupgame(chan, usersloggedin)
+							cleanupgame(chan, usersloggedin, parts[2])
 							irc.privmsg(parts[2], "The game has been stopped!")
 						elif chan.playing != 0:
 							if not loggedin:
@@ -643,7 +643,7 @@ def network_handler(net):
 								continue
 							if result == True:
 								irc.privmsg(parts[2], "The game has finished!")
-								cleanupgame(chan, usersloggedin)
+								cleanupgame(chan, usersloggedin, parts[2])
 								saveuserdb()
 				elif state == 0:
 					if parts[1] == "001":
