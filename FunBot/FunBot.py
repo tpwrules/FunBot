@@ -159,6 +159,7 @@ def connect(network):
 		log("[WARNING] Could not create socket")
 		handle_exception()
 		return
+	n.s.settimeout(1.0)
 	n.conn = NetworkConnection(n.s, network, msgwait)
 	log("[STATUS] Spawning network thread")
 	n.running = True
@@ -343,7 +344,10 @@ def network_handler(net):
 	old = ""
 	try:
 		while net.running:
-			data = old+s.recv(1024)
+			try:
+				data = old+s.recv(1024)
+			except socket.timeout:
+				continue
 			data = data.replace("\n", "").split("\r")
 			old = data[-1]
 			for line in data[:-1]:
