@@ -123,6 +123,7 @@ class Scramble:
 			if self.currwordnum == len(self.words):
 				self.irc.send("No more words! Come back next time!")
 				return True
+			self.nextword()
 
 def start(irc, options):
 	return Scramble(irc, options)
