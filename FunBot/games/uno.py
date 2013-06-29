@@ -62,11 +62,12 @@ class Uno:
 		for x in xrange(7):
 			hand.append(self.popcard())
 		if hostname != "FunBot":
+			hand.sort(key=lambda card: card[1]*15+card[0])
 			self.irc.notice(self.irc.getnick(hostname), "Your cards: "+" ".join([self.getcardtext(card) for card in hand]))
 		if self.irc.getuserdata(hostname) == None:
 			self.irc.setuserdata(hostname, [0, 0])
 		self.players.append([hostname, hand])
-	def getcardtext(self, card_):
+	def getcardtext(self, card_, article=False):
 		text = ""
 		card = card_[0]
 		color = card_[1]
@@ -96,6 +97,8 @@ class Uno:
 			elif card == 14:
 				text = "\x038,1W\x0312,1D\x034,1F"
 		text = "\x0300["+text+"\x0F\x0300]\x0F"
+		if article:
+			text = ("an " if card == 8 else "a") + text
 		return text
 	def popcard(self):
 		card = self.deck.pop()
@@ -150,9 +153,9 @@ class Uno:
 	def runturn(self, firstturn=False):
 		player = self.players[self.currplayer]
 		nick = self.irc.getnick(player[0])
-		self.irc.send(nick + " is up")
-		self.irc.send("Top card: "+self.getcardtext(self.topcard))
+		self.irc.send(nick + " is up, top card: "+self.getcardtext(self.topcard))
 		if player[0] != "FunBot":
+			player[1].sort(key=lambda card: card[1]*15+card[0])
 			self.irc.notice(nick, " ".join([self.getcardtext(card) for card in player[1]]))
 		if self.topcard[0] > 9 and firstturn == True:
 			self.handleactioncard()
@@ -167,38 +170,24 @@ class Uno:
 		playablecards = map(self.appendpoints, filter(self.canbeplayed, me[1]))
 		if len(playablecards) == 0:
 			if self.drew == True:
-				self.irc.send(prefix+"skip")
 				return self.handlecmd("s", [], True, "FunBot", nick)
 			else:
-				self.irc.send(prefix+"draw")
 				return self.handlecmd("d", [], True, "FunBot", nick)
 		playablecards.sort()
 		playablecards.reverse()
-		preferredcards = []
-		for x in playablecards:
-			if x[0] == 50:
-				continue
-			preferredcards.append(x)
+		preferredcards = filter(lambda card: card[0] != 50, playablecards)
 		if len(preferredcards) == 0:
 			pointvals = [[0,"red"],[0,"green"],[0,"blue"],[0,"yellow"]]
 			for x in me[1]:
-				if x[1] == -1:
-					continue
+				if x[1] == -1: continue
 				pointvals[x[1]][0] += self.appendpoints(x)[0]
 			pointvals.sort()
 			pointvals.reverse()
 			if playablecards[0][1] == 13:
-				self.irc.send(prefix+"play wild "+pointvals[0][1])
 				return self.handlecmd("p", ["wild", pointvals[0][1]], True, "FunBot", nick)
 			else:
-				#print "playing wdf"
-				self.irc.send(prefix+"play wdf "+pointvals[0][1])
 				return self.handlecmd("p", ["wdf", pointvals[0][1]], True, "FunBot", nick)
-		preferredcards2 = []
-		for x in preferredcards:
-			if x[2] != self.topcard[1]:
-				continue
-			preferredcards2.append(x)
+		preferredcards2 = filter(lambda card: card[2] != self.topcard[1], preferredcards)
 		if len(preferredcards2) == 0:
 			preferredcards2 = preferredcards
 		card_ = preferredcards2[0]
@@ -207,8 +196,6 @@ class Uno:
 			card = str(card_[0])
 		else:
 			card = ["drawtwo", "reverse", "skip"][card_[1]-10]
-		#print "card", card
-		self.irc.send(prefix+"play "+color+" "+card)
 		return self.handlecmd("p", [color, card], True, "FunBot", nick)
 	def appendpoints(self, card):
 		if card[0] < 10:
@@ -249,6 +236,7 @@ class Uno:
 		for player in self.players:
 			if player[0] == hostname:
 				continue
+			player[1].sort(key=lambda card: card[1]*15+card[0])
 			self.irc.send(self.irc.getnick(player[0])+"'s cards: "+" ".join([self.getcardtext(c) for c in player[1]]))
 			pointvals = sum([self.appendpoints(c)[0] for c in player[1]])
 			userdata = self.irc.getuserdata(player[0])
@@ -307,7 +295,7 @@ class Uno:
 			else:
 				self.topcard = [card, color]
 			self.drew = False
-			self.irc.send(nick+" plays a "+self.getcardtext([card, color]))
+			self.irc.send(nick+" plays "+self.getcardtext([card, color], True))
 			if len(player[1]) < 2:
 				if len(player[1]) == 1:
 					self.irc.send("\x02"+nick+" has UNO!!")
